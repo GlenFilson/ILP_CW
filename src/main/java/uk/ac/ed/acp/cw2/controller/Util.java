@@ -3,8 +3,9 @@ package uk.ac.ed.acp.cw2.controller;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.server.ResponseStatusException;
-
+import java.awt.geom.Path2D;
 import java.net.URISyntaxException;
+import java.util.List;
 import java.util.Map;
 
 public class Util {
@@ -12,6 +13,53 @@ public class Util {
         double dx = x2 - x1;
         double dy = y2 - y1;
         return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    public static double[][] verticesToArray(List<Map<String, Object>> vertices) throws ResponseStatusException {
+        if (vertices == null || vertices.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Error: vertices list cannot be null or empty"
+            );
+        }
+
+        if (vertices.size() < 5) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Error: region is not enclosed. The last point in the vertices is omitted"
+            );
+        }
+
+
+        double[][] result = new double[vertices.size()][2];
+
+        for (int i = 0; i < vertices.size(); i++) {
+            Map<String, Object> vertex = vertices.get(i);
+
+            Object lngObj = vertex.get("lng");
+            Object latObj = vertex.get("lat");
+
+            // Convert to double
+            double lng = ((Number) lngObj).doubleValue();
+            double lat = ((Number) latObj).doubleValue();
+
+            result[i][0] = lng;  // column 0 = lng
+            result[i][1] = lat;  // column 1 = lat
+        }
+
+        return result;
+    }
+
+    public static boolean isPointInPolygon(double x, double y, double[][] polygon) {
+        Path2D path = new Path2D.Double();
+        path.moveTo(polygon[0][0], polygon[0][1]);
+
+        for (int i = 1; i < polygon.length; i++) {
+            path.lineTo(polygon[i][0], polygon[i][1]);
+        }
+
+        path.closePath();
+        return path.contains(x, y);
     }
 
     public static String moveTo(double lat, double lng, double bearing) {
@@ -61,6 +109,19 @@ public class Util {
             );
         }
 
+    }
+
+    public static void validateVertices(List<Map<String, Object>> vertices) {
+        if (vertices == null || vertices.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Error: vertices array must not be null or empty"
+            );
+        }
+
+        for (Map<String, Object> vertex : vertices) {
+            validateOnePosition(vertex);
+        }
     }
 
     public static void validatePositions(Map<String, Object> positions) throws ResponseStatusException {

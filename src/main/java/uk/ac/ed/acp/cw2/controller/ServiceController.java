@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.Map;
 import java.net.URL;
 import java.time.Instant;
@@ -103,11 +104,46 @@ public class ServiceController {
         // process input to prepare parameters for calculating
         Map<String, Object> lnglat = (Map<String, Object>) positionAndAngle.get("start");
         Map<String, Object> angle = (Map<String, Object>) positionAndAngle.get("angle");
-        double lng = Math.toRadians((Double) lnglat.get("lng"));
-        double lat = Math.toRadians((Double) lnglat.get("lat"));
-        double bearing = Math.toRadians((Double) angle.get("angle"));
+        double lng = Math.toRadians(((Number) lnglat.get("lng")).doubleValue());
+        double lat = Math.toRadians(((Number) lnglat.get("lat")).doubleValue());
+        double bearing = Math.toRadians(((Number) angle.get("angle")).doubleValue());
+
 
         return moveTo(lat, lng, bearing);
+    }
+
+    @PostMapping("/api/v1/isInRegion")
+    public boolean isInRegion(@RequestBody Map<String, Object> positionAndRegion) throws ResponseStatusException {
+        // input validation
+        if (positionAndRegion == null || positionAndRegion.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Error: input cannot be null or empty"
+            );
+        }
+        Map<String, Object> position = (Map<String, Object>) positionAndRegion.get("position");
+        validateOnePosition(position);
+        Map<String, Object> region = (Map<String, Object>) positionAndRegion.get("region");
+        if  (!region.containsKey("name") || !region.containsKey("vertices")) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Error: input has missing name or vertices"
+            );
+        }
+        List<Map<String, Object>> vertices = (List<Map<String, Object>>) region.get("vertices");
+        validateVertices(vertices);
+        if (!(region.get("name") instanceof String)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Error: name should be a string"
+            );
+        };
+
+        // prepare inputs for teh isPointInPolygon function
+        double[][] verticesMatrix = verticesToArray(vertices);
+        double positionLng = ((Number) position.get("lng")).doubleValue();
+        double positionLat = ((Number) position.get("lat")).doubleValue();
+        return isPointInPolygon(positionLng, positionLat,  verticesMatrix);
     }
 
 
