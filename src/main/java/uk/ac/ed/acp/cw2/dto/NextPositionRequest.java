@@ -4,11 +4,11 @@ import lombok.Getter;
 import lombok.Setter;
 import uk.ac.ed.acp.cw2.model.Position;
 
-public class IsCloseToRequest {
+public class NextPositionRequest {
     @Getter
     @Setter
-    private Position position1;
-    @Getter
-    @Setter
-    private Position position2;
+    Position start;
+
+    @Getter @Setter
+    Double angle;
 }
