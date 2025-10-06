@@ -76,7 +76,7 @@ public class DistanceService {
         int n = region.getVertices().size();//number of vertices, point
         int intersections = 0;
         List<Position> vertices = region.getVertices();
-        //x point, y point
+        //x point, y point - points of the target position
         double xp  = position.getLat();
         double yp = position.getLng();;
 
