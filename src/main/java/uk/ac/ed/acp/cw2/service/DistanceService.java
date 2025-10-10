@@ -72,6 +72,7 @@ public class DistanceService {
      * @param region a list of positions/points that form a polygon
      * @return whether the position is inside the polygon created by the list of positions/points, the region
      */
+    //TODO: Include points on the edge of the polygon SPEC SAYS: "return true if the point is inside the named region (including the border
     public Boolean isInRegion(Position position, Region region){
         int n = region.getVertices().size();//number of vertices, point
         int intersections = 0;
@@ -87,6 +88,14 @@ public class DistanceService {
 
             double x2 = vertices.get(j).getLat();
             double y2 = vertices.get(j).getLng();
+
+            //check if point is strictly on the edge of the polygon
+            if ((y2 - y1) * (xp - x1) == (x2 - x1) * (yp - y1)) {
+                if (xp >= Math.min(x1, x2) && xp <= Math.max(x1, x2) &&
+                        yp >= Math.min(y1, y2) && yp <= Math.max(y1, y2)) {
+                    return true; //if on edge, we consider it inRegion so return
+                }
+            }
 
             //if the points y coord is not above both or below both points, aka the points y coord is between the points y coords
             //does the ray cross the points in the y coords
