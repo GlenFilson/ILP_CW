@@ -66,13 +66,10 @@ public class DistanceService {
     }
 
     /**
-     * Note: does count points on the edge as "inRegion" as Piazza comment:
-     * "A point is inside if it’s strictly inside. You do not need to add an extra 0.00015 tolerance around the polygon edges. The automarker will expect the standard geometric definition here."
      * @param position the point to check
      * @param region a list of positions/points that form a polygon
      * @return whether the position is inside the polygon created by the list of positions/points, the region
      */
-    //TODO: Include points on the edge of the polygon SPEC SAYS: "return true if the point is inside the named region (including the border
     public Boolean isInRegion(Position position, Region region){
         int n = region.getVertices().size();//number of vertices, point
         int intersections = 0;
