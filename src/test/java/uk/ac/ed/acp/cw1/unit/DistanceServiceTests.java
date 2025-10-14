@@ -229,82 +229,103 @@ public class DistanceServiceTests {
 
     //isInRegion tests
 
+
+    private Region createSimpleRegion() {
+        List<Position> vertices = List.of(
+                new Position(0.0, 1.0),
+                new Position(1.0, 0.0),
+                new Position(0.0, -1.0),
+                new Position(-1.0, 0.0),
+                new Position(0.0, 1.0)
+        );
+        return new Region("simple", vertices);
+    }
     @Test
     public void testIsInRegion_pointInRegion(){
         Position position = new Position(0.0, 0.0);
-
-        String name = "test";
-        List<Position> vertices = new ArrayList<Position>();
-        vertices.add(new Position(0.0, 1.0));
-        vertices.add(new Position(1.0, 0.0));
-        vertices.add(new Position(0.0, -1.0));
-        vertices.add(new Position(-1.0, 0.0));
-        vertices.add(new Position(0.0, 1.0));
-        Region region = new Region(name, vertices);
+        Region region = createSimpleRegion();
         assertTrue(distanceService.isInRegion(position, region));
     }
 
     @Test
     public void testIsInRegion_pointOnEdge(){
         Position position = new Position(1.0, 0.0);
-
-        String name = "test";
-        List<Position> vertices = new ArrayList<Position>();
-        vertices.add(new Position(0.0, 1.0));
-        vertices.add(new Position(1.0, 0.0));
-        vertices.add(new Position(0.0, -1.0));
-        vertices.add(new Position(-1.0, 0.0));
-        vertices.add(new Position(0.0, 1.0));
-        Region region = new Region(name, vertices);
+        Region region = createSimpleRegion();
         assertTrue(distanceService.isInRegion(position, region));
     }
 
     @Test
     public void testIsInRegion_pointJustInside(){
         Position position = new Position( 0.0, 0.999999999999);
-
-        String name = "test";
-        List<Position> vertices = new ArrayList<Position>();
-        vertices.add(new Position(0.0, 1.0));
-        vertices.add(new Position(1.0, 0.0));
-        vertices.add(new Position(0.0, -1.0));
-        vertices.add(new Position(-1.0, 0.0));
-        vertices.add(new Position(0.0, 1.0));
-        Region region = new Region(name, vertices);
+        Region region = createSimpleRegion();
         assertTrue(distanceService.isInRegion(position, region));
     }
 
     @Test
     public void testIsInRegion_pointJustOutside(){
         Position position = new Position( 0.0, 1.0000001);
-
-        String name = "test";
-        List<Position> vertices = new ArrayList<Position>();
-        vertices.add(new Position(0.0, 1.0));
-        vertices.add(new Position(1.0, 0.0));
-        vertices.add(new Position(0.0, -1.0));
-        vertices.add(new Position(-1.0, 0.0));
-        vertices.add(new Position(0.0, 1.0));
-        Region region = new Region(name, vertices);
+        Region region = createSimpleRegion();
         assertFalse(distanceService.isInRegion(position, region));
     }
 
     @Test
     public void testIsInRegion_pointFarOutside(){
         Position position = new Position(180.0, -180.0);
-
-        String name = "test";
-        List<Position> vertices = new ArrayList<Position>();
-        vertices.add(new Position(0.0, 1.0));
-        vertices.add(new Position(1.0, 0.0));
-        vertices.add(new Position(0.0, -1.0));
-        vertices.add(new Position(-1.0, 0.0));
-        vertices.add(new Position(0.0, 1.0));
-        Region region = new Region(name, vertices);
+        Region region = createSimpleRegion();
         assertFalse(distanceService.isInRegion(position, region));
 
     }
 
+    private Region createComplexRegion() {
+        List<Position> vertices = List.of(
+                new Position(0.0, 0.0),
+                new Position(2.0, 1.0),
+                new Position(3.0, 3.0),
+                new Position(1.5, 4.0),
+                new Position(0.0, 3.0),
+                new Position(-1.0, 1.5),
+                new Position(0.0, 0.0)
+        );
+        return new Region("complex", vertices);
+    }
+
+
+
+    @Test
+    public void testIsInRegion_complexPointInRegion(){
+        Position position = new Position(0.0, 1.0);
+        Region region = createComplexRegion();
+        assertTrue(distanceService.isInRegion(position, region));
+    }
+
+    @Test
+    public void testIsInRegion_complexPointOnEdge(){
+        Position position = new Position(3.0, 3.0);
+        Region region = createComplexRegion();
+        assertTrue(distanceService.isInRegion(position, region));
+    }
+
+    @Test
+    public void testIsInRegion_complexPointJustInside(){
+        Position position = new Position( 2.99999999999, 3.0);
+        Region region = createComplexRegion();
+        assertTrue(distanceService.isInRegion(position, region));
+    }
+
+    @Test
+    public void testIsInRegion_complexPointJustOutside(){
+        Position position = new Position( 3.0000000001, 3.0);
+        Region region = createComplexRegion();
+        assertFalse(distanceService.isInRegion(position, region));
+    }
+
+    @Test
+    public void testIsInRegion_complexPointFarOutside(){
+        Position position = new Position(180.0, -180.0);
+        Region region = createComplexRegion();
+        assertFalse(distanceService.isInRegion(position, region));
+
+    }
 
 
 

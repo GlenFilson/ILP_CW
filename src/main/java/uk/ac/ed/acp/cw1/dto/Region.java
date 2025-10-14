@@ -15,9 +15,9 @@ public class Region {
     @NotNull(message = "name cannot be null")
     private String name;
     @Valid
-    @NotNull(message = "vertices cannot be null")
     @ClosedPolygon
     @Size(min = 4)
+    @NotNull(message = "vertices cannot be null")
     private List<Position> vertices;
 
 }
