@@ -10,7 +10,8 @@ public class ValidAngleValidator implements ConstraintValidator<ValidAngle, Doub
 
     @Override
     public boolean isValid(Double angle, ConstraintValidatorContext context) {
-        if (angle == null) return false;
+        //validator should return true if null, so the other beans are responsible for checks
+        if (angle == null) return true;
         return angle % VALID_ANGLE_MULTIPLE == 0;
     }
 }
