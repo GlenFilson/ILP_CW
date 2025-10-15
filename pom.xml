@@ -11,8 +11,8 @@
     <groupId>uk.ac.ed</groupId>
     <artifactId>ILP_CW1</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>IlpTutorial1</name>
-    <description>IlpTutorial1</description>
+    <name>ILP_CW1</name>
+    <description>ILP_CW1</description>
     <properties>
         <java.version>21</java.version>
     </properties>
