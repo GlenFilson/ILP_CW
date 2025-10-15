@@ -8,11 +8,11 @@ import java.util.List;
 
 @Service
 public class DistanceService {
-
-    private final double THRESHOLD_DISTANCE = 0.00015;
+    //the distance for a point to be considered close
+    private final double CLOSE_THRESHOLD = 0.00015;
 
     //step size to move 
-    private final double STEP_SIZE = 0.00015;
+    private final double MOVE_DISTANCE = 0.00015;
 
     /**
      * calculates the distance between 2 points using the Euclidean distance formula
@@ -33,7 +33,7 @@ public class DistanceService {
 
     public Boolean isCloseTo(Position position1, Position position2){
         double distance = euclideanDistance(position1, position2);
-        return distance < THRESHOLD_DISTANCE;
+        return distance < CLOSE_THRESHOLD;
     }
 
 
@@ -48,8 +48,8 @@ public class DistanceService {
         double lng = position.getLng();
 
         double radians = Math.toRadians(angle);
-        double deltaLat = STEP_SIZE * Math.sin(radians);
-        double deltaLng = STEP_SIZE * Math.cos(radians);
+        double deltaLat = MOVE_DISTANCE * Math.sin(radians);
+        double deltaLng = MOVE_DISTANCE * Math.cos(radians);
 
         return new Position(lat+deltaLat, lng+deltaLng);
     }
@@ -75,7 +75,12 @@ public class DistanceService {
             double x2 = vertices.get(j).getLat();
             double y2 = vertices.get(j).getLng();
 
-            //check if point is strictly on the edge of the polygon
+
+            /**
+             * check if point is strictly on the edge of the polygon
+             * checks if the gradient between the point and one vertex1 is the same as the gradient between the point and vertex2
+             * if the gradients are the same and the point lies between the vertices points, it is on the edge, its on the line formed between the vertices
+             */
             if ((y2 - y1) * (xp - x1) == (x2 - x1) * (yp - y1)) {
                 if (xp >= Math.min(x1, x2) && xp <= Math.max(x1, x2) &&
                         yp >= Math.min(y1, y2) && yp <= Math.max(y1, y2)) {
