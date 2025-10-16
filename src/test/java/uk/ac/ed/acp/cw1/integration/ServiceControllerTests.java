@@ -644,22 +644,10 @@ public class ServiceControllerTests {
         }
     """;
 
-        MvcResult result = mockMvc.perform(post("/api/v1/nextPosition")
+       mockMvc.perform(post("/api/v1/nextPosition")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonRequest))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        JsonNode node = new ObjectMapper().readTree(result.getResponse().getContentAsString());
-
-        double lat = node.get("lat").asDouble();
-        double lng = node.get("lng").asDouble();
-
-        assertThat(lat).isCloseTo(0.00015, within(1e-6));
-        assertThat(lng).isCloseTo(0.0, within(1e-6));
-
-
-
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -674,20 +662,10 @@ public class ServiceControllerTests {
         }
     """;
 
-        MvcResult result = mockMvc.perform(post("/api/v1/nextPosition")
+        mockMvc.perform(post("/api/v1/nextPosition")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonRequest))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        JsonNode node = new ObjectMapper().readTree(result.getResponse().getContentAsString());
-
-        double lat = node.get("lat").asDouble();
-        double lng = node.get("lng").asDouble();
-
-        assertThat(lat).isCloseTo(0.00015, within(1e-6));
-        assertThat(lng).isCloseTo(0.0, within(1e-6));
-
+                .andExpect(status().isBadRequest());
 
 
     }
@@ -866,7 +844,7 @@ public class ServiceControllerTests {
             "start": {
                 "lng": 0.0,
                 "lat": 0.0
-            },
+            }
         }
     """;
 

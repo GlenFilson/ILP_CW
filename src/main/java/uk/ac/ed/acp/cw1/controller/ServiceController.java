@@ -88,10 +88,9 @@ public class ServiceController {
     }
 
     /**
-     * handles bad requests, mapping each validation error and returning it
-     * makes the error response more informative, says what field caused error with corresponding error message
+     * handles bad requests, mapping each validation error and logging it
+     * logs the field name causing the error with its error message
      * @param ex the exception being handled
-     * @return the map of the fields and their corresponding error messages
      */
     //handles bad requests - status code 400
     @ResponseStatus(HttpStatus.BAD_REQUEST)
