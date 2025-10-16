@@ -16,7 +16,6 @@ import uk.ac.ed.acp.cw1.service.DistanceService;
 
 import java.net.URL;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -27,7 +26,6 @@ import java.util.Map;
 @RestController()
 @RequestMapping("/api/v1")
 public class ServiceController {
-
     private static final Logger logger = LoggerFactory.getLogger(ServiceController.class);
     //service injection
     private final DistanceService distanceService;
@@ -98,14 +96,12 @@ public class ServiceController {
     //handles bad requests - status code 400
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public Map<String, String> handleValidationExceptions(MethodArgumentNotValidException ex){
-        Map<String, String> errors = new HashMap<>();
+    public void handleValidationExceptions(MethodArgumentNotValidException ex){
         ex.getBindingResult().getAllErrors().forEach(error -> {
             String fieldName = ((FieldError) error).getField();
             String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
+            logger.warn(fieldName + " : " + errorMessage);
         });
-        return errors;
     }
 
 
