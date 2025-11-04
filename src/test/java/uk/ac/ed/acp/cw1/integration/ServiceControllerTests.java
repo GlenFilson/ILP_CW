@@ -1249,11 +1249,4 @@ public class ServiceControllerTests {
                         .content(jsonRequest))
                 .andExpect(status().isBadRequest());
     }
-
-
-
-
-
-
-
 }
