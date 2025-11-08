@@ -13,9 +13,11 @@ import uk.ac.ed.acp.cw1.dto.*;
 import uk.ac.ed.acp.cw1.dto.Position;
 import uk.ac.ed.acp.cw1.dto.Region;
 import uk.ac.ed.acp.cw1.service.DistanceService;
+import uk.ac.ed.acp.cw1.service.DroneService;
 
 import java.net.URL;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -29,12 +31,14 @@ public class ServiceController {
     private static final Logger logger = LoggerFactory.getLogger(ServiceController.class);
     //service injection
     private final DistanceService distanceService;
-    public ServiceController(DistanceService distanceService){
+    private final DroneService droneService;
+
+    public ServiceController(DistanceService distanceService, DroneService droneService){
         this.distanceService = distanceService;
+        this.droneService = droneService;
     }
     @Value("${ilp.service.url}")
     public URL serviceUrl;
-
 
     @GetMapping("/")
     public String index() {
@@ -86,6 +90,37 @@ public class ServiceController {
 
         return ResponseEntity.ok(distanceService.isInRegion(request.getPosition(), region));
     }
+
+
+    @GetMapping("dronesWithCooling/{state}")
+    public ResponseEntity<List<String>> dronesWithCooling(@PathVariable boolean state){
+        return ResponseEntity.ok(droneService.getDronesWithCooling(state));
+    }
+
+    @GetMapping("droneDetails/{id}")
+    public ResponseEntity<?> droneDetails(@PathVariable Integer id){
+        Drone drone = droneService.getDroneById(id);
+        if (drone == null){
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(drone);
+    }
+
+    @GetMapping("/queryAsPath/{attributeName}/{attributeValue}")
+    public ResponseEntity<List<String>> queryAsPath(@PathVariable String attributeName,
+                                                    @PathVariable String attributeValue){
+        return ResponseEntity.ok(droneService.queryAsPath(attributeName, attributeValue));
+    }
+
+    @PostMapping("/query")
+    public ResponseEntity<List<String>> query(@RequestBody List<QueryAttribute> attributes) {
+        return ResponseEntity.ok(droneService.query(attributes));
+    }
+
+
+
+
+
 
     /**
      * handles bad requests, mapping each validation error and logging it
