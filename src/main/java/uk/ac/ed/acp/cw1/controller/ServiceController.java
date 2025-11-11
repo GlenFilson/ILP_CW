@@ -14,6 +14,7 @@ import uk.ac.ed.acp.cw1.dto.Position;
 import uk.ac.ed.acp.cw1.dto.Region;
 import uk.ac.ed.acp.cw1.service.DistanceService;
 import uk.ac.ed.acp.cw1.service.DroneService;
+import uk.ac.ed.acp.cw1.service.ExternalAPIService;
 
 import java.net.URL;
 import java.util.HashMap;
@@ -32,10 +33,12 @@ public class ServiceController {
     //service injection
     private final DistanceService distanceService;
     private final DroneService droneService;
+    private final ExternalAPIService externalAPIService;
 
-    public ServiceController(DistanceService distanceService, DroneService droneService){
+    public ServiceController(DistanceService distanceService, DroneService droneService, ExternalAPIService externalAPIService){
         this.distanceService = distanceService;
         this.droneService = droneService;
+        this.externalAPIService = externalAPIService;
     }
     @Value("${ilp.service.url}")
     public URL serviceUrl;
@@ -117,7 +120,16 @@ public class ServiceController {
         return ResponseEntity.ok(droneService.query(attributes));
     }
 
+    @PostMapping("/queryAvailableDrones")
+    public ResponseEntity<List<String>> queryAvailableDrones(@RequestBody List<MedDispatchRec> dispatches) {
+        return ResponseEntity.ok(droneService.queryAvailableDrones(dispatches));
+    }
 
+
+    @PostMapping("/calcDeliveryPath")
+    public ResponseEntity<?> calcDeliveryPath(@RequestBody List<MedDispatchRec> dispatches){
+        return null;
+    }
 
 
 

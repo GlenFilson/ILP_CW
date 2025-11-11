@@ -3,14 +3,21 @@ package uk.ac.ed.acp.cw1.service;
 import uk.ac.ed.acp.cw1.dto.Drone;
 import uk.ac.ed.acp.cw1.dto.QueryAttribute;
 
+
+/**
+ * Helper service class for comparing {@link QueryAttribute} with {@link Drone}
+ * Used by the {@link DroneService} for the query functions
+ */
 public class AttributeComparator {
 
     /**
      * Checks if a {@link Drone} matches the given {@link QueryAttribute}
      * is used by the DroneService for the queryAsPath function
-     * @param drone
-     * @param attribute
-     * @return boolean true if match false if not
+     * Assumes that given the current state of {@link Drone} with only boolean and numeric fields,
+     * it only handles boolean and numeric
+     * @param drone The drone object being compared
+     * @param attribute The attributes to be compared
+     * @return boolean true if matches, false if not
      */
     public static boolean matches(Drone drone, QueryAttribute attribute){
         Drone.Capability capability = drone.getCapability();
@@ -32,6 +39,7 @@ public class AttributeComparator {
 
     /**
      * Use number to handle all numeric types, int and double etc..
+     * Catches formatExceptions during casting
      * @param droneValue
      * @param expectedValue
      * @param operator accepts =, !, <, >
@@ -58,6 +66,7 @@ public class AttributeComparator {
      *
      * @param droneValue
      * @param expectedValue
+     * NOTE: Spec does not specify the need for != operator, but I have added it anyway
      * @param operator accepts =, !=
      * @return
      */
@@ -69,4 +78,6 @@ public class AttributeComparator {
             default -> false;
         };
     }
+
+
 }
