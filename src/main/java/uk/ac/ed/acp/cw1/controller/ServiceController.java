@@ -1,10 +1,12 @@
 package uk.ac.ed.acp.cw1.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -15,11 +17,10 @@ import uk.ac.ed.acp.cw1.dto.Region;
 import uk.ac.ed.acp.cw1.service.DistanceService;
 import uk.ac.ed.acp.cw1.service.DroneService;
 import uk.ac.ed.acp.cw1.service.ExternalAPIService;
+import uk.ac.ed.acp.cw1.service.PathfindingService;
 
 import java.net.URL;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Controller class that handles various HTTP endpoints for the application.
@@ -34,11 +35,13 @@ public class ServiceController {
     private final DistanceService distanceService;
     private final DroneService droneService;
     private final ExternalAPIService externalAPIService;
+    private final PathfindingService pathfindingService;
 
-    public ServiceController(DistanceService distanceService, DroneService droneService, ExternalAPIService externalAPIService){
+    public ServiceController(DistanceService distanceService, DroneService droneService, ExternalAPIService externalAPIService, PathfindingService pathfindingService) {
         this.distanceService = distanceService;
         this.droneService = droneService;
         this.externalAPIService = externalAPIService;
+        this.pathfindingService = pathfindingService;
     }
     @Value("${ilp.service.url}")
     public URL serviceUrl;
@@ -101,7 +104,7 @@ public class ServiceController {
     }
 
     @GetMapping("droneDetails/{id}")
-    public ResponseEntity<?> droneDetails(@PathVariable Integer id){
+    public ResponseEntity<?> droneDetails(@PathVariable String id){
         Drone drone = droneService.getDroneById(id);
         if (drone == null){
             return ResponseEntity.notFound().build();
@@ -128,7 +131,104 @@ public class ServiceController {
 
     @PostMapping("/calcDeliveryPath")
     public ResponseEntity<?> calcDeliveryPath(@RequestBody List<MedDispatchRec> dispatches){
-        return null;
+        return ResponseEntity.ok(pathfindingService.calcDeliveryPath(dispatches));
+    }
+
+    @PostMapping("/calcDeliveryPathAsGeoJson")
+    public ResponseEntity<?> calcDeliveryPathAsGeoJson(@RequestBody List<MedDispatchRec> dispatches){
+        return ResponseEntity.ok(pathfindingService.calcDeliveryPathAsGeoJson(dispatches));
+    }
+
+    //TODO: remove this helper function
+    /**
+     * helper used to display the restricted areas as well as calculated delivery route as GeoJson
+     * @param dispatches
+     * @return
+     * @throws Exception
+     */
+    @PostMapping("/testPathWithObstacles")
+    public ResponseEntity<String> testPathWithObstacles(
+            @RequestBody List<MedDispatchRec> dispatches) throws Exception {
+
+        // Get flight path
+        String flightPathGeoJson = pathfindingService.calcDeliveryPathAsGeoJson(dispatches);
+        List<RestrictedArea> restrictedAreas = externalAPIService.getRestrictedAreas();
+
+        // Parse flight path
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> flightPathData = mapper.readValue(flightPathGeoJson, Map.class);
+        List<List<Double>> flightCoordinates = (List<List<Double>>) flightPathData.get("coordinates");
+
+        // Build FeatureCollection
+        List<Map<String, Object>> features = new ArrayList<>();
+
+        // 1. Add flight path as blue LineString
+        Map<String, Object> flightFeature = new LinkedHashMap<>();
+        flightFeature.put("type", "Feature");
+
+        Map<String, Object> flightGeometry = new LinkedHashMap<>();
+        flightGeometry.put("type", "LineString");
+        flightGeometry.put("coordinates", flightCoordinates);
+        flightFeature.put("geometry", flightGeometry);
+
+        Map<String, Object> flightProps = new LinkedHashMap<>();
+        flightProps.put("name", "Flight Path");
+        flightProps.put("stroke", "#0000FF");  // Blue
+        flightProps.put("stroke-width", 3);
+        flightProps.put("stroke-opacity", 1);
+        flightFeature.put("properties", flightProps);
+
+        features.add(flightFeature);
+
+        // 2. Add restricted areas as red Polygons
+        for (RestrictedArea area : restrictedAreas) {
+            Map<String, Object> areaFeature = new LinkedHashMap<>();
+            areaFeature.put("type", "Feature");
+
+            // Convert vertices to GeoJSON polygon coordinates
+            List<List<List<Double>>> polygonCoords = new ArrayList<>();
+            List<List<Double>> ring = new ArrayList<>();
+
+            for (Position vertex : area.getVertices()) {
+                List<Double> coord = new ArrayList<>();
+                coord.add(vertex.getLng());
+                coord.add(vertex.getLat());
+                ring.add(coord);
+            }
+
+            // Close polygon (first point = last point)
+            if (!ring.isEmpty() && !ring.get(0).equals(ring.get(ring.size() - 1))) {
+                ring.add(ring.get(0));
+            }
+
+            polygonCoords.add(ring);
+
+            Map<String, Object> areaGeometry = new LinkedHashMap<>();
+            areaGeometry.put("type", "Polygon");
+            areaGeometry.put("coordinates", polygonCoords);
+            areaFeature.put("geometry", areaGeometry);
+
+            Map<String, Object> areaProps = new LinkedHashMap<>();
+            areaProps.put("name", area.getName());
+            areaProps.put("fill", "#FF0000");  // Red fill
+            areaProps.put("fill-opacity", 0.3);
+            areaProps.put("stroke", "#FF0000");  // Red border
+            areaProps.put("stroke-width", 2);
+            areaFeature.put("properties", areaProps);
+
+            features.add(areaFeature);
+        }
+
+        Map<String, Object> featureCollection = new LinkedHashMap<>();
+        featureCollection.put("type", "FeatureCollection");
+        featureCollection.put("features", features);
+
+        String result = mapper.writerWithDefaultPrettyPrinter()
+                .writeValueAsString(featureCollection);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(result);
     }
 
 

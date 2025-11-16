@@ -11,11 +11,10 @@ import java.util.List;
 @NoArgsConstructor
 //the path for a singular drone
 public class DronePath {
-
-    private Integer droneId;
+    //changed from int to String as per announcement
+    private String droneId;
     //list of deliveries that are made on this path
     private List<Delivery> deliveries;
-    private Double totalCost;
-    private Integer totalMoves;
+
 
 }

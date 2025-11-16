@@ -10,7 +10,8 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class DroneAvailability{
-    private Integer id;
+    //changed from int to String as per announcement
+    private String id;//the drone ID
     private List<Availability> availability;
 
 }

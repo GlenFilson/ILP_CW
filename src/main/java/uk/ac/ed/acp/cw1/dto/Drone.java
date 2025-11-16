@@ -10,12 +10,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class Drone {
-    @NotNull
+    @NotNull(message="Drone name cannot be null")
     private String name;
-    @NotNull
-    @Min(0)//id cannot be negative
-    private Integer id;
-    @NotNull
+    @NotNull(message="Drone id cannot be null")
+    //changed from int to string as said in announcement
+    private String id;
+    @NotNull(message="Drone capability cannot be null")
     private Capability capability;
 
     @Data
@@ -24,7 +24,7 @@ public class Drone {
     public static class Capability {
         private boolean cooling;
         private boolean heating;
-        private Integer capacity;
+        private Double capacity;
         private Integer maxMoves;
         private Double costPerMove;
         private Double costInitial;

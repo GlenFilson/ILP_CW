@@ -40,7 +40,7 @@ public class DroneService {
 
     }
 
-    public Drone getDroneById(Integer id) {
+    public Drone getDroneById(String id) {
         //go through all drones
         return externalAPIService.getAllDrones().stream()
                 //filter for drones which id matches the given parameter
@@ -123,7 +123,9 @@ public class DroneService {
         if(!capability.isHeating() && heatingRequired ){
             return false;
         }
-
+        //NOTE: need to revisit this, is this how maxCost should be considered? maybe also need to do costPerMove * maxMoves
+        //PIAZZA: Only perform attribute-based filtering and use a lower-bound or estimated cost such as
+        //(distance(servicePoint, delivery)/step) × costPerMove + costInitial + costFinal, divided by the number of dispatches;
         if(maxCostAllowed != null){
             //calculate the total cost
             double droneTotalCost = capability.getCostInitial() + capability.getCostFinal();
@@ -137,5 +139,7 @@ public class DroneService {
         return true;
         
     }
+
+
 
 }

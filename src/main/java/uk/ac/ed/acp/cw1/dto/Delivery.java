@@ -10,7 +10,7 @@ import java.util.List;
 @NoArgsConstructor
 public class Delivery {
     //the dispatchID from the MedDispatchRec, the delivery request that is being fulfilled
-    private Integer dispatchId;
+    private Integer deliveryId;
     //the path the drone takes to get to fulfill this delivery, the list of positions made
     private List<Position> flightPath;
 }
