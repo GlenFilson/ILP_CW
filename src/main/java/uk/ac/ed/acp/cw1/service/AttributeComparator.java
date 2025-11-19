@@ -21,7 +21,8 @@ public class AttributeComparator {
      */
     public static boolean matches(Drone drone, QueryAttribute attribute){
         Drone.Capability capability = drone.getCapability();
-        String attributeName = attribute.getAttribute();
+        //TODO: check if this should convert to lowercase, or if lowercase input is invalid
+        String attributeName = attribute.getAttribute().toLowerCase();
         String operator = attribute.getOperator();
         String attributeValue = attribute.getValue();
 

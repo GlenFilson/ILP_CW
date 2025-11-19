@@ -23,8 +23,8 @@ public class IlpRestServiceConfig {
     @Bean
     public RestTemplate restTemplate(RestTemplateBuilder builder) {
     return builder
-            .connectTimeout(Duration.ofSeconds(10))
-            .readTimeout(Duration.ofSeconds(10))
+            .connectTimeout(Duration.ofSeconds(60))
+            .readTimeout(Duration.ofSeconds(60))
             .build();
     }
 
