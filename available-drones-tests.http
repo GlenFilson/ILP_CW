@@ -1,0 +1,780 @@
+### ========================================
+### AVAILABLE DRONES FILTERING TESTS
+### Tests the queryAvailableDrones endpoint
+### Based on updated multi-day and multi-service point logic
+### ========================================
+
+
+
+### Test 1: Single Dispatch - Simple Case
+# Should return Drone 1 (has cooling, available Monday 09:00)
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 1001,
+    "date": "2025-11-10",
+    "time": "09:00:00",
+    "requirements": {
+      "capacity": 2.0,
+      "cooling": true,
+      "heating": false,
+      "maxCost": 50.0
+    },
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    }
+  }
+]
+
+### Test 2: Same Day, Different Times - Should Pass
+# Tests that drone can be at different service points throughout the day
+# Monday 09:00 (SP1) and Monday 14:00 (SP2)
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 2001,
+    "date": "2025-11-10",
+    "time": "09:00:00",
+    "requirements": {
+      "capacity": 1.5,
+      "cooling": true,
+      "heating": false,
+      "maxCost": 40.0
+    },
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    }
+  },
+  {
+    "id": 2002,
+    "date": "2025-11-10",
+    "time": "14:00:00",
+    "requirements": {
+      "capacity": 1.5,
+      "cooling": true,
+      "heating": false,
+      "maxCost": 40.0
+    },
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.946
+    }
+  }
+]
+
+### Test 3: Multi-Day Dispatches - Should Pass
+# Tests that drone available on multiple days is returned
+# Monday 09:00 and Wednesday 10:00
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 3001,
+    "date": "2025-11-10",
+    "time": "09:00:00",
+    "requirements": {
+      "capacity": 1.0,
+      "cooling": true,
+      "heating": false,
+      "maxCost": 50.0
+    },
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    }
+  },
+  {
+    "id": 3002,
+    "date": "2025-11-12",
+    "time": "10:00:00",
+    "requirements": {
+      "capacity": 1.0,
+      "cooling": true,
+      "heating": false,
+      "maxCost": 50.0
+    },
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.946
+    }
+  }
+]
+
+### Test 4: Multi-Day - Should Fail (Drone Not Available on One Day)
+# Drone 1 available Monday and Wednesday, but NOT Tuesday
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 4001,
+    "date": "2025-11-10",
+    "time": "09:00:00",
+    "requirements": {
+      "capacity": 1.0,
+      "cooling": true,
+      "heating": false,
+      "maxCost": 50.0
+    },
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    }
+  },
+  {
+    "id": 4002,
+    "date": "2025-11-11",
+    "time": "09:00:00",
+    "requirements": {
+      "capacity": 1.0,
+      "cooling": true,
+      "heating": false,
+      "maxCost": 50.0
+    },
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.946
+    }
+  }
+]
+
+### Test 5: High Capacity - Multiple Drones
+# Should return Drones 3, 8, or 10 (20kg, 20kg, 12kg capacity)
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 5001,
+    "date": "2025-11-13",
+    "time": "15:00:00",
+    "requirements": {
+      "capacity": 10.0,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 150.0
+    },
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    }
+  }
+]
+
+### Test 6: Total Capacity Exceeds All Drones - Should Return Empty
+# Total 25kg exceeds even Drone 3 and 8 (20kg max)
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 6001,
+    "date": "2025-11-10",
+    "time": "10:00:00",
+    "requirements": {
+      "capacity": 12.0,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 300.0
+    },
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    }
+  },
+  {
+    "id": 6002,
+    "date": "2025-11-10",
+    "time": "11:00:00",
+    "requirements": {
+      "capacity": 13.0,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 300.0
+    },
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.946
+    }
+  }
+]
+
+### Test 7: Cooling Required - Filters to Specific Drones
+# Only Drones 1, 5, 8, 9 have cooling
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 7001,
+    "date": "2025-11-10",
+    "time": "11:00:00",
+    "requirements": {
+      "capacity": 3.0,
+      "cooling": true,
+      "heating": false,
+      "maxCost": 60.0
+    },
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    }
+  }
+]
+
+### Test 8: Heating Required - Different Set of Drones
+# Drones 1, 2, 4, 5, 6, 7, 9, 10 have heating
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 8001,
+    "date": "2025-11-11",
+    "time": "14:00:00",
+    "requirements": {
+      "capacity": 3.0,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 60.0
+    },
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.946
+    }
+  }
+]
+
+### Test 9: Both Cooling AND Heating - Very Restrictive
+# Only Drones 1, 5, 9 have BOTH cooling and heating
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 9001,
+    "date": "2025-11-10",
+    "time": "10:00:00",
+    "requirements": {
+      "capacity": 2.0,
+      "cooling": true,
+      "heating": true,
+      "maxCost": 70.0
+    },
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    }
+  }
+]
+
+### Test 10: Mixed Requirements - All Must Match
+# One needs cooling, one needs heating - drone must have BOTH
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 10001,
+    "date": "2025-11-12",
+    "time": "10:00:00",
+    "requirements": {
+      "capacity": 1.0,
+      "cooling": true,
+      "heating": false,
+      "maxCost": 40.0
+    },
+    "delivery": {
+      "lng": -3.187,
+      "lat": 55.944
+    }
+  },
+  {
+    "id": 10002,
+    "date": "2025-11-12",
+    "time": "11:00:00",
+    "requirements": {
+      "capacity": 1.0,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 40.0
+    },
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    }
+  }
+]
+
+### Test 11: Tight Cost Constraint - Should Filter Out Expensive Drones
+# Low maxCost should only return cheap drones
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 11001,
+    "date": "2025-11-10",
+    "time": "10:00:00",
+    "requirements": {
+      "capacity": 1.0,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 15.0
+    },
+    "delivery": {
+      "lng": -3.1865,
+      "lat": 55.9447
+    }
+  }
+]
+
+### Test 12: Impossible Cost - Should Return Empty
+# Cost too low for any round trip
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 12001,
+    "date": "2025-11-10",
+    "time": "14:00:00",
+    "requirements": {
+      "capacity": 1.0,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 5.0
+    },
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    }
+  }
+]
+
+### Test 13: Three Dispatches Same Day - Different Times
+# Tests capacity aggregation and availability across time slots
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 13001,
+    "date": "2025-11-14",
+    "time": "09:00:00",
+    "requirements": {
+      "capacity": 1.0,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 50.0
+    },
+    "delivery": {
+      "lng": -3.187,
+      "lat": 55.944
+    }
+  },
+  {
+    "id": 13002,
+    "date": "2025-11-14",
+    "time": "11:00:00",
+    "requirements": {
+      "capacity": 1.5,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 50.0
+    },
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    }
+  },
+  {
+    "id": 13003,
+    "date": "2025-11-14",
+    "time": "15:00:00",
+    "requirements": {
+      "capacity": 1.0,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 50.0
+    },
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.946
+    }
+  }
+]
+
+### Test 14: Weekend Availability - Saturday
+# Tests weekend drone availability (different schedule)
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 14001,
+    "date": "2025-11-15",
+    "time": "14:00:00",
+    "requirements": {
+      "capacity": 3.0,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 70.0
+    },
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    }
+  }
+]
+
+### Test 15: Sunday Morning vs Afternoon
+# Tests time-specific availability windows
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 15001,
+    "date": "2025-11-16",
+    "time": "08:00:00",
+    "requirements": {
+      "capacity": 2.0,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 50.0
+    },
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    }
+  }
+]
+
+### Test 16: Multi-Day with Different Requirements Each Day
+# Monday needs cooling, Wednesday needs heating
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 16001,
+    "date": "2025-11-10",
+    "time": "09:00:00",
+    "requirements": {
+      "capacity": 1.5,
+      "cooling": true,
+      "heating": false,
+      "maxCost": 45.0
+    },
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    }
+  },
+  {
+    "id": 16002,
+    "date": "2025-11-12",
+    "time": "14:00:00",
+    "requirements": {
+      "capacity": 1.5,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 45.0
+    },
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.946
+    }
+  }
+]
+
+### Test 17: Five Days of the Week - Full Week Test
+# Tests drone availability across Mon, Tue, Wed, Thu, Fri
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 17001,
+    "date": "2025-11-10",
+    "time": "09:00:00",
+    "requirements": {
+      "capacity": 0.5,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 30.0
+    },
+    "delivery": {
+      "lng": -3.187,
+      "lat": 55.944
+    }
+  },
+  {
+    "id": 17002,
+    "date": "2025-11-11",
+    "time": "09:00:00",
+    "requirements": {
+      "capacity": 0.5,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 30.0
+    },
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    }
+  },
+  {
+    "id": 17003,
+    "date": "2025-11-12",
+    "time": "09:00:00",
+    "requirements": {
+      "capacity": 0.5,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 30.0
+    },
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.946
+    }
+  },
+  {
+    "id": 17004,
+    "date": "2025-11-13",
+    "time": "09:00:00",
+    "requirements": {
+      "capacity": 0.5,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 30.0
+    },
+    "delivery": {
+      "lng": -3.190,
+      "lat": 55.947
+    }
+  },
+  {
+    "id": 17005,
+    "date": "2025-11-14",
+    "time": "09:00:00",
+    "requirements": {
+      "capacity": 0.5,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 30.0
+    },
+    "delivery": {
+      "lng": -3.186,
+      "lat": 55.943
+    }
+  }
+]
+
+### Test 18: Capacity at Exact Drone Limit
+# Total 8kg exactly matches Drone 2, 4, 7, 9 capacity
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 18001,
+    "date": "2025-11-10",
+    "time": "14:00:00",
+    "requirements": {
+      "capacity": 2.5,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 60.0
+    },
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    }
+  },
+  {
+    "id": 18002,
+    "date": "2025-11-10",
+    "time": "15:00:00",
+    "requirements": {
+      "capacity": 2.5,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 60.0
+    },
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.946
+    }
+  },
+  {
+    "id": 18003,
+    "date": "2025-11-10",
+    "time": "16:00:00",
+    "requirements": {
+      "capacity": 3.0,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 60.0
+    },
+    "delivery": {
+      "lng": -3.187,
+      "lat": 55.944
+    }
+  }
+]
+
+### Test 19: Empty List Test
+# Should return empty list
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[]
+
+### Test 20: Single Dispatch - No Capabilities Required
+# Any drone with sufficient capacity should work
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 20001,
+    "date": "2025-11-10",
+    "time": "10:00:00",
+    "requirements": {
+      "capacity": 3.0
+    },
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    }
+  }
+]
+
+### ========================================
+### EDGE CASE TESTS
+### ========================================
+
+### Edge Case 1: Midnight Transition
+# Tests 23:59:59 availability
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 21001,
+    "date": "2025-11-10",
+    "time": "23:59:59",
+    "requirements": {
+      "capacity": 2.0,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 40.0
+    },
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    }
+  }
+]
+
+### Edge Case 2: Noon Transition
+# Tests 12:00:00 availability window boundary
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 22001,
+    "date": "2025-11-10",
+    "time": "12:00:00",
+    "requirements": {
+      "capacity": 3.0,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 50.0
+    },
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.945
+    }
+  }
+]
+
+### Edge Case 3: Very Close Delivery (Minimal Cost)
+# Delivery very close to service point
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 23001,
+    "date": "2025-11-10",
+    "time": "10:00:00",
+    "requirements": {
+      "capacity": 1.0,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 12.0
+    },
+    "delivery": {
+      "lng": -3.18636,
+      "lat": 55.94469
+    }
+  }
+]
+
+### Edge Case 4: Very Far Delivery (High Cost)
+# Tests long-distance cost filtering
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 24001,
+    "date": "2025-11-10",
+    "time": "09:00:00",
+    "requirements": {
+      "capacity": 2.0,
+      "cooling": true,
+      "heating": false,
+      "maxCost": 200.0
+    },
+    "delivery": {
+      "lng": -3.25,
+      "lat": 55.98
+    }
+  }
+]
+
+### Edge Case 5: Minimal Capacity (0.1kg)
+# Tests smallest capacity requirement
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 25001,
+    "date": "2025-11-10",
+    "time": "10:00:00",
+    "requirements": {
+      "capacity": 0.1,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 25.0
+    },
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    }
+  }
+]
+

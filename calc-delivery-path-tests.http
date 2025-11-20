@@ -1,0 +1,406 @@
+
+### Test 1: Single delivery on Monday from Appleton Tower (Service Point 1)
+### Drone 1 is available all day Monday at Appleton Tower
+### Tests basic path calculation with cooling and heating requirements
+POST http://localhost:8080/api/v1/calcDeliveryPath
+Content-Type: application/json
+
+[
+  {
+    "id": 1,
+    "date": "2025-01-06",
+    "time": "14:00:00",
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    },
+    "requirements": {
+      "capacity": 2.0,
+      "cooling": true,
+      "heating": false,
+      "maxCost": 50.0
+    }
+  }
+]
+
+### Test 2: Multiple deliveries on same day (Monday) from Appleton Tower
+### Should be handled by same drone (Drone 1 available all day Monday)
+POST http://localhost:8080/api/v1/calcDeliveryPath
+Content-Type: application/json
+
+[
+  {
+    "id": 1,
+    "date": "2025-01-06",
+    "time": "10:00:00",
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    },
+    "requirements": {
+      "capacity": 1.5,
+      "cooling": true,
+      "heating": true,
+      "maxCost": 30.0
+    }
+  },
+  {
+    "id": 2,
+    "date": "2025-01-07",
+    "time": "11:00:00",
+    "delivery": {
+      "lng": -3.185,
+      "lat": 55.944
+    },
+    "requirements": {
+      "capacity": 2.0,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 30.0
+    }
+  }
+]
+
+### Test 3: Delivery requiring large capacity (Ocean Terminal - Service Point 2)
+### Drone 8 has 20.0 capacity and cooling, available on Tuesday
+POST http://localhost:8080/api/v1/calcDeliveryPath
+Content-Type: application/json
+
+[
+  {
+    "id": 3,
+    "date": "2025-01-07",
+    "time": "15:00:00",
+    "delivery": {
+      "lng": -3.180,
+      "lat": 55.980
+    },
+    "requirements": {
+      "capacity": 15.0,
+      "cooling": true,
+      "heating": false,
+      "maxCost": 200.0
+    }
+  }
+]
+
+### Test 4: Multiple deliveries across different days
+### Should assign different drones based on availability
+POST http://localhost:8080/api/v1/calcDeliveryPath
+Content-Type: application/json
+
+[
+  {
+    "id": 4,
+    "date": "2025-01-06",
+    "time": "14:00:00",
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    },
+    "requirements": {
+      "capacity": 2.0,
+      "cooling": true,
+      "heating": true,
+      "maxCost": 50.0
+    }
+  },
+  {
+    "id": 5,
+    "date": "2025-01-07",
+    "time": "16:00:00",
+    "delivery": {
+      "lng": -3.179,
+      "lat": 55.981
+    },
+    "requirements": {
+      "capacity": 3.0,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 50.0
+    }
+  }
+]
+
+### Test 5: Delivery with no cooling requirement
+### Drone 2 available Tuesday all day at Appleton Tower
+POST http://localhost:8080/api/v1/calcDeliveryPath
+Content-Type: application/json
+
+[
+  {
+    "id": 6,
+    "date": "2025-01-07",
+    "time": "10:00:00",
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.946
+    },
+    "requirements": {
+      "capacity": 5.0,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 40.0
+    }
+  }
+]
+
+### Test 6: Wednesday delivery from Ocean Terminal
+### Drone 7 available Wednesday morning (00:00-11:59)
+POST http://localhost:8080/api/v1/calcDeliveryPath
+Content-Type: application/json
+
+[
+  {
+    "id": 7,
+    "date": "2025-01-08",
+    "time": "09:00:00",
+    "delivery": {
+      "lng": -3.180,
+      "lat": 55.982
+    },
+    "requirements": {
+      "capacity": 4.0,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 35.0
+    }
+  }
+]
+
+### Test 7: Complex multi-delivery scenario
+### Multiple deliveries requiring path optimization and restricted area avoidance
+POST http://localhost:8080/api/v1/calcDeliveryPath
+Content-Type: application/json
+
+[
+  {
+    "id": 8,
+    "date": "2025-01-06",
+    "time": "10:00:00",
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    },
+    "requirements": {
+      "capacity": 1.0,
+      "cooling": true,
+      "heating": true,
+      "maxCost": 25.0
+    }
+  },
+  {
+    "id": 9,
+    "date": "2025-01-06",
+    "time": "11:00:00",
+    "delivery": {
+      "lng": -3.185,
+      "lat": 55.944
+    },
+    "requirements": {
+      "capacity": 1.5,
+      "cooling": true,
+      "heating": true,
+      "maxCost": 25.0
+    }
+  },
+  {
+    "id": 10,
+    "date": "2025-01-06",
+    "time": "12:00:00",
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.946
+    },
+    "requirements": {
+      "capacity": 1.0,
+      "cooling": true,
+      "heating": false,
+      "maxCost": 25.0
+    }
+  }
+]
+
+### Test 8: Friday afternoon delivery from Appleton Tower
+### Multiple drones available Friday afternoon (Drone 1, 2, 5)
+POST http://localhost:8080/api/v1/calcDeliveryPath
+Content-Type: application/json
+
+[
+  {
+    "id": 11,
+    "date": "2025-01-10",
+    "time": "15:00:00",
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    },
+    "requirements": {
+      "capacity": 3.0,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 40.0
+    }
+  }
+]
+
+### Test 9: Sunday delivery requiring high capacity
+### Drone 1 available all day Sunday at Appleton Tower
+POST http://localhost:8080/api/v1/calcDeliveryPath
+Content-Type: application/json
+
+[
+  {
+    "id": 12,
+    "date": "2025-01-12",
+    "time": "13:00:00",
+    "delivery": {
+      "lng": -3.187,
+      "lat": 55.944
+    },
+    "requirements": {
+      "capacity": 3.5,
+      "cooling": true,
+      "heating": true,
+      "maxCost": 60.0
+    }
+  }
+]
+
+### Test 10: Empty dispatch list
+### Should return empty drone paths with zero cost and moves
+POST http://localhost:8080/api/v1/calcDeliveryPath
+Content-Type: application/json
+
+[]
+
+### Test 11: Saturday delivery from Ocean Terminal
+### Drone 6 available all day Saturday
+POST http://localhost:8080/api/v1/calcDeliveryPath
+Content-Type: application/json
+
+[
+  {
+    "id": 13,
+    "date": "2025-01-11",
+    "time": "11:00:00",
+    "delivery": {
+      "lng": -3.178,
+      "lat": 55.981
+    },
+    "requirements": {
+      "capacity": 3.0,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 45.0
+    }
+  }
+]
+
+### Test 12: Tight capacity constraint
+### Tests drone selection based on exact capacity match
+POST http://localhost:8080/api/v1/calcDeliveryPath
+Content-Type: application/json
+
+[
+  {
+    "id": 14,
+    "date": "2025-01-06",
+    "time": "16:00:00",
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    },
+    "requirements": {
+      "capacity": 4.0,
+      "cooling": true,
+      "heating": true,
+      "maxCost": 50.0
+    }
+  }
+]
+
+### Test 13: Low cost constraint
+### Tests cost calculation and constraint checking
+POST http://localhost:8080/api/v1/calcDeliveryPath
+Content-Type: application/json
+
+[
+  {
+    "id": 15,
+    "date": "2025-01-06",
+    "time": "10:00:00",
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    },
+    "requirements": {
+      "capacity": 2.0,
+      "cooling": true,
+      "heating": true,
+      "maxCost": 15.0
+    }
+  }
+]
+
+### Test 14: Delivery near restricted area (George Square)
+### Tests path avoidance around George Square restricted area
+POST http://localhost:8080/api/v1/calcDeliveryPath
+Content-Type: application/json
+
+[
+  {
+    "id": 16,
+    "date": "2025-01-06",
+    "time": "10:00:00",
+    "delivery": {
+      "lng": -3.1885,
+      "lat": 55.9435
+    },
+    "requirements": {
+      "capacity": 2.0,
+      "cooling": true,
+      "heating": true,
+      "maxCost": 50.0
+    }
+  }
+]
+
+### Test 15: Multiple deliveries with mixed requirements
+### Tests complex scenario with different cooling/heating needs
+POST http://localhost:8080/api/v1/calcDeliveryPath
+Content-Type: application/json
+
+[
+  {
+    "id": 17,
+    "date": "2025-01-07",
+    "time": "14:00:00",
+    "delivery": {
+      "lng": -3.180,
+      "lat": 55.981
+    },
+    "requirements": {
+      "capacity": 5.0,
+      "cooling": true,
+      "heating": false,
+      "maxCost": 80.0
+    }
+  },
+  {
+    "id": 18,
+    "date": "2025-01-07",
+    "time": "15:00:00",
+    "delivery": {
+      "lng": -3.179,
+      "lat": 55.980
+    },
+    "requirements": {
+      "capacity": 3.0,
+      "cooling": true,
+      "heating": false,
+      "maxCost": 80.0
+    }
+  }
+]
+

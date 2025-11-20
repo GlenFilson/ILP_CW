@@ -56,6 +56,9 @@ public class AttributeComparator {
                 case "!=" -> dValue != eValue;
                 case "<" -> dValue < eValue;
                 case ">" -> dValue > eValue;
+                //added more operators to be safe
+                case "<=" -> dValue <= eValue;
+                case ">=" -> dValue >= eValue;
                 default -> false;
             };
         }catch (NumberFormatException e){

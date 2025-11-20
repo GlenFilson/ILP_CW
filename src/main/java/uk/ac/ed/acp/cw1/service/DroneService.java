@@ -191,7 +191,7 @@ public class DroneService {
                 LocalTime until = slot.getUntil();
 
                 // Check if time falls within [from, until)
-                if (!time.isBefore(from) && time.isBefore(until)) {
+                if (!time.isBefore(from) && !time.isAfter(until)) {
                     return true;
                 }
             }
