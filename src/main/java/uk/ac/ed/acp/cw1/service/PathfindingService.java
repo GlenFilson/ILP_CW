@@ -33,40 +33,46 @@ public class PathfindingService {
         List<DroneForServicePointResponse> dronesForServicePoints = externalAPIService.getDronesForServicePoints();
         List<RestrictedArea> restrictedAreas = externalAPIService.getRestrictedAreas();
 
+        // Step 1: Group dispatches by date (treat null as same date)
         Map<java.time.LocalDate, List<MedDispatchRec>> dispatchesByDate = groupDispatchesByDate(dispatches);
 
+        // Track results across all date groups
         List<DronePath> allDronePaths = new ArrayList<>();
         double totalCost = 0;
         int totalMoves = 0;
 
+        // Step 2: Process each date group
         for (Map.Entry<java.time.LocalDate, List<MedDispatchRec>> entry : dispatchesByDate.entrySet()) {
             java.time.LocalDate date = entry.getKey();
             List<MedDispatchRec> dateDispatches = entry.getValue();
 
+            // Step 3: For this date, filter drones that are available
             List<Drone> availableDrones = filterAvailableDrones(drones, date, dateDispatches, dronesForServicePoints);
 
 
+            // Track which dispatches have been assigned for this date
             Set<Integer> assignedDispatchIds = new HashSet<>();
 
+            // Step 4: Apply pathfinding for each available drone
             for (Drone drone : availableDrones) {
                 if (assignedDispatchIds.size() == dateDispatches.size()) {
                     break; // All dispatches for this date are assigned
                 }
 
-                // get the service point for this drone
+                // Get the service point for this drone
                 ServicePoint servicePoint = getServicePointForDrone(drone.getId(), dronesForServicePoints, servicePoints);
                 if (servicePoint == null) {
                     continue;
                 }
 
-                // find unassigned dispatches this drone can handle
+                // Find unassigned dispatches this drone can handle
                 List<MedDispatchRec> candidates = new ArrayList<>();
                 for (MedDispatchRec dispatch : dateDispatches) {
                     if (assignedDispatchIds.contains(dispatch.getId())) {
                         continue;
                     }
 
-                    // check basic capability requirements
+                    // Check basic capability requirements
                     if (!canDeliverSingleDispatch(drone, dispatch)) {
                         continue;
                     }
@@ -78,25 +84,25 @@ public class PathfindingService {
                     continue;
                 }
 
-                // build optimal multi-delivery route for this drone
+                // Build optimal multi-delivery route for this drone
                 List<MedDispatchRec> route = buildOptimalRoute(drone, servicePoint, candidates, restrictedAreas);
 
                 if (route.isEmpty()) {
                     continue;
                 }
 
-                // calculate the actual path for this route (expensive operation)
+                // Calculate the actual path for this route (expensive operation)
                 DronePath dronePath = calculatePath(drone, servicePoint, route, restrictedAreas);
 
-                // validate the path against all constraints
+                // Validate the path against all constraints
                 int pathMoves = countMoves(dronePath);
 
-                // check maxMoves constraint FIRST (cheaper than cost calculation)
+                // Check maxMoves constraint FIRST (cheaper than cost calculation)
                 if (pathMoves > drone.getCapability().getMaxMoves()) {
                     continue;
                 }
 
-                // only check cost if needed
+                // Only check cost if needed
                 boolean hasCostConstraint = route.stream()
                         .anyMatch(d -> d.getRequirements().getMaxCost() != null);
 
@@ -116,18 +122,18 @@ public class PathfindingService {
 
                     totalCost += pathCost;
                 } else {
-                    // calculate cost for response
+                    // Calculate cost for response
                     double pathCost = drone.getCapability().getCostInitial()
                             + (pathMoves * drone.getCapability().getCostPerMove())
                             + drone.getCapability().getCostFinal();
                     totalCost += pathCost;
                 }
 
-                // path is valid, add to result
+                // Path is valid - add it to results
                 allDronePaths.add(dronePath);
                 totalMoves += pathMoves;
 
-                // mark these dispatches as assigned
+                // Mark these dispatches as assigned
                 route.forEach(d -> assignedDispatchIds.add(d.getId()));
             }
         }
@@ -136,7 +142,7 @@ public class PathfindingService {
     }
 
     /**
-     * groups dispatches by their date. Treats null dates as the same date.
+     * Groups dispatches by their date. Treats null dates as the same date.
      */
     private Map<java.time.LocalDate, List<MedDispatchRec>> groupDispatchesByDate(List<MedDispatchRec> dispatches) {
         Map<java.time.LocalDate, List<MedDispatchRec>> grouped = new LinkedHashMap<>();
@@ -150,7 +156,7 @@ public class PathfindingService {
     }
 
     /**
-     * filters drones that are available for the given date and can deliver before the required times.
+     * Filters drones that are available for the given date and can deliver before the required times.
      * A drone is available if it has availability on that day of week and its time window starts before
      * the earliest dispatch time needed.
      */
@@ -160,7 +166,7 @@ public class PathfindingService {
                                                List<DroneForServicePointResponse> assignments) {
         List<Drone> available = new ArrayList<>();
 
-        // if date is null, all drones are potentially available
+        // If date is null, all drones are potentially available
         if (date == null) {
             return new ArrayList<>(allDrones);
         }
@@ -177,30 +183,30 @@ public class PathfindingService {
     }
 
     /**
-     * checks if a drone is available for a date group.
-     * the drone must have availability on the day of week and its availability window
+     * Checks if a drone is available for a date group.
+     * The drone must have availability on the day of week and its availability window
      * must start before all dispatch times in the group.
      */
     private boolean isDroneAvailableForDateGroup(Drone drone,
                                                    java.time.DayOfWeek dayOfWeek,
                                                    List<MedDispatchRec> dateDispatches,
                                                    List<DroneForServicePointResponse> assignments) {
-        // find this drone's availability schedule
+        // Find this drone's availability schedule
         for (DroneForServicePointResponse assignment : assignments) {
             for (DroneAvailability availability : assignment.getDrones()) {
                 if (availability.getId().equals(drone.getId())) {
-                    // check if drone has any availability slots for this day of week
+                    // Check if drone has any availability slots for this day of week
                     for (Availability slot : availability.getAvailability()) {
                         if (slot.getDayOfWeek() == dayOfWeek) {
-                            // drone has availability on this day
-                            // check if it can deliver before all required times
+                            // Drone has availability on this day
+                            // Check if it can deliver before all required times
                             java.time.LocalTime droneAvailableFrom = slot.getFrom();
 
-                            // check if drone is available before all dispatch times
+                            // Check if drone is available before all dispatch times
                             boolean canDeliverAll = true;
                             for (MedDispatchRec dispatch : dateDispatches) {
                                 if (dispatch.getTime() != null) {
-                                    // drone must be available before the dispatch time
+                                    // Drone must be available before the dispatch time
                                     if (droneAvailableFrom.isAfter(dispatch.getTime())) {
                                         canDeliverAll = false;
                                         break;
@@ -209,20 +215,20 @@ public class PathfindingService {
                             }
 
                             if (canDeliverAll) {
-                                return true; // this time slot works
+                                return true; // This time slot works
                             }
                         }
                     }
-                    return false; // drone found but no suitable time slot
+                    return false; // Drone found but no suitable time slot
                 }
             }
         }
-        return false; // drone not found in assignments
+        return false; // Drone not found in assignments
     }
 
     /**
-     * counts the number of moves in a drones path
-     * each move is a transition between two consecutive positions
+     * Counts the number of moves (transitions) in a drone's path.
+     * Each move is a transition between two consecutive positions.
      * @param path
      * @return
      */
@@ -295,6 +301,7 @@ public class PathfindingService {
             return greedyPath;
         }
 
+        // Fall back to A* only if greedy fails
         //queue to track nodes to be visited
         PriorityQueue<Node> openSet = new PriorityQueue<>((a,b) -> Double.compare(a.f, b.f));
         //visited nodes set
@@ -366,7 +373,7 @@ public class PathfindingService {
             }
         }
 
-        // if A* dosent find path, greedy fallback search
+        // if A* dosent find path, fallback search
         return fallbackGreedyPath(start, end, restrictedAreas);
     }
 
@@ -501,6 +508,7 @@ public class PathfindingService {
 
     /**
      * counter clockwise orientation test
+     *
      * @param a
      * @param b
      * @param c
@@ -537,11 +545,11 @@ public class PathfindingService {
     }
 
     /**
-     * find the service point assigned to a specific drone
-     * @param droneId
-     * @param assignments
-     * @param servicePoints
-     * @return T
+     * Find the service point assigned to a specific drone
+     * @param droneId The drone ID to look up
+     * @param assignments The drone-to-service-point assignments
+     * @param servicePoints All available service points
+     * @return The service point for this drone, or null if not found
      */
     private ServicePoint getServicePointForDrone(String droneId,
                                                   List<DroneForServicePointResponse> assignments,
@@ -572,8 +580,12 @@ public class PathfindingService {
         double accumulatedCapacity = 0;
         int estimatedMoves = 0;
 
-        // greedy nearest-neighbor selection
-        while (route.size() < candidates.size()) {
+        // Performance optimization: limit multi-delivery attempts
+        // Try single delivery first (fastest), then attempt multi-delivery
+        int maxDeliveriesPerDrone = Math.min(3, candidates.size()); // Limit to 3 deliveries max
+
+        // Greedy nearest-neighbor selection
+        while (route.size() < maxDeliveriesPerDrone && route.size() < candidates.size()) {
             MedDispatchRec nearest = null;
             double minDistance = Double.MAX_VALUE;
 
@@ -582,21 +594,21 @@ public class PathfindingService {
                     continue;
                 }
 
-                // check capacity constraint FIRST (cheap check)
+                // Check capacity constraint FIRST (cheap check)
                 double newCapacity = accumulatedCapacity + candidate.getRequirements().getCapacity();
                 if (newCapacity > drone.getCapability().getCapacity()) {
                     continue; // Would exceed drone capacity
                 }
 
-                // estimate distance (Euclidean as lower bound)
+                // Estimate distance (Euclidean as lower bound)
                 double distance = distanceService.euclideanDistance(current, candidate.getDelivery());
 
-                // early check to see if adding this delivery would likely exceed max moves
+                // Early check: would this exceed move budget?
                 double estMovesToTarget = distance / 0.00015;
                 double estReturnMoves = distanceService.euclideanDistance(candidate.getDelivery(), servicePoint.getLocation()) / 0.00015;
 
                 if (estimatedMoves + estMovesToTarget + estReturnMoves > drone.getCapability().getMaxMoves() * 0.9) {
-                    // would likely exceed moves, skip
+                    // Would likely exceed moves, skip
                     continue;
                 }
 
@@ -607,26 +619,26 @@ public class PathfindingService {
             }
 
             if (nearest == null) {
-                break; // cant add more deliveries
+                break; // Can't add more deliveries
             }
 
+            // Estimate moves BEFORE adding (early rejection)
             double distMoves = minDistance / 0.00015;
             double returnDistance = distanceService.euclideanDistance(nearest.getDelivery(), servicePoint.getLocation());
             double returnMoves = returnDistance / 0.00015;
 
             if (estimatedMoves + distMoves + returnMoves > drone.getCapability().getMaxMoves()) {
-                // would exceed budget, stop here
+                // Would exceed budget, stop here
                 break;
             }
 
-            // add to route
+            // Add to route
             route.add(nearest);
             used.add(nearest.getId());
             accumulatedCapacity += nearest.getRequirements().getCapacity();
             estimatedMoves += (int) distMoves;
             current = nearest.getDelivery();
         }
-
 
         return route;
     }

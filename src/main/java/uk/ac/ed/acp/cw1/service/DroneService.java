@@ -273,7 +273,7 @@ public class DroneService {
                 .min(Comparator.comparingDouble(sp ->
                     distanceService.euclideanDistance(sp.getLocation(), deliveryLocation)
                 ))
-                .orElse(servicePoints.get(0));
+                .orElse(servicePoints.get(0)); // Fallback to first service point
     }
 
 
