@@ -231,6 +231,11 @@ public class ServiceController {
                 .body(result);
     }
 
+    @GetMapping("/restrictedAreas")
+    public ResponseEntity<List<RestrictedArea>> getRestrictedAreas(){
+        return ResponseEntity.ok(externalAPIService.getRestrictedAreas());
+    }
+
 
 
 

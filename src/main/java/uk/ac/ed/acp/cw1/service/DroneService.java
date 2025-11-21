@@ -92,15 +92,16 @@ public class DroneService {
 
         //get all drones
         //given a list of dispatches, return drones which fulfill all of them
-        //need to check the total capacity needed for the dispatches
+        //need to check the maximum capacity needed for any single dispatch
         //need to check if any dispatches require cooling or heating
         //if maxCost is given, need to find the minimum maxCost (most restrictive) and ensure drone meets
         //check day and time availability for ALL dispatches
 
-        //sums the capacity of all dispatches
-        double totalCapacity = dispatches.stream()
+        //find the maximum capacity among all dispatches (drone makes separate trips)
+        double maxCapacity = dispatches.stream()
                 .mapToDouble(dispatch -> dispatch.getRequirements().getCapacity())
-                .sum();
+                .max()
+                .orElse(0.0);
         boolean coolingRequired = dispatches.stream()
                 .anyMatch(dispatch -> dispatch.getRequirements().isCooling());
 
@@ -131,7 +132,7 @@ public class DroneService {
                     }
 
                     // check capability with dispatches and service points for proper cost estimation
-                    if (!canFulfillAllDispatches(drone, totalCapacity, coolingRequired, heatingRequired,
+                    if (!canFulfillAllDispatches(drone, maxCapacity, coolingRequired, heatingRequired,
                                                   minimumMaxCost, dispatches, servicePoints, assignedSp)) {
                         return false;
                     }
@@ -198,7 +199,7 @@ public class DroneService {
     }
 
     private boolean canFulfillAllDispatches(Drone drone,
-                                            double totalCapacityNeeded,
+                                            double maxCapacityNeeded,
                                             boolean coolingRequired,
                                             boolean heatingRequired,
                                             Double maxCostAllowed,
@@ -207,8 +208,8 @@ public class DroneService {
                                             ServicePoint assignedServicePoint) {
         Drone.Capability capability = drone.getCapability();
 
-        //check capacity constraint
-        if(capability.getCapacity() < totalCapacityNeeded){
+        //check capacity constraint (drone only needs to satisfy max single dispatch capacity)
+        if(capability.getCapacity() < maxCapacityNeeded){
             return false;
         }
         //if the drone dosent have cooling, and cooling is required return false
@@ -219,6 +220,31 @@ public class DroneService {
         //if the drone dosent have heating, and heating is required return false
         if(!capability.isHeating() && heatingRequired ){
             return false;
+        }
+
+        //check maxMoves constraint for each dispatch (round trip)
+        if(capability.getMaxMoves() != null && !dispatches.isEmpty()){
+            for (MedDispatchRec dispatch : dispatches) {
+                // use assigned service point for this drone if available, otherwise pick closest
+                ServicePoint spToUse = assignedServicePoint != null ? assignedServicePoint : findClosestServicePoint(
+                    dispatch.getDelivery(), servicePoints
+                );
+
+                // calculate distance from service point to delivery location (one way)
+                double distance = distanceService.euclideanDistance(
+                    spToUse.getLocation(),
+                    dispatch.getDelivery()
+                );
+
+                // estimate moves needed for round trip
+                double estimatedMovesOneWay = distance / MOVE_DISTANCE;
+                double estimatedMovesRoundTrip = estimatedMovesOneWay * 2;
+
+                // check if drone can complete this dispatch within maxMoves
+                if(estimatedMovesRoundTrip > capability.getMaxMoves()){
+                    return false;
+                }
+            }
         }
 
         //PIAZZA: Only perform attribute-based filtering and use a lower-bound or estimated cost such as
