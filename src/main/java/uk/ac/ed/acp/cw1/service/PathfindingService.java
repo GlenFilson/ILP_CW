@@ -672,7 +672,7 @@ public class PathfindingService {
             return new com.fasterxml.jackson.databind.ObjectMapper()
                     .writeValueAsString(geoJson);
         } catch (Exception e) {
-            return "{\"type\": \"LineString\", \"coordinates\": []}";
+            return "{\"type\": \"LineString\",\"coordinates\": []}";
         }
     }
 
