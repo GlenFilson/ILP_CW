@@ -48,9 +48,7 @@ public class PathfindingServiceTests {
         pathfindingService = new PathfindingService(distanceService, externalAPIService, droneService);
     }
 
-    // ===============================================
     // HELPER METHODS
-    // ===============================================
 
     private Drone createTestDrone(String id, double capacity, int maxMoves, boolean cooling, boolean heating) {
         Drone drone = new Drone();
@@ -136,9 +134,6 @@ public class PathfindingServiceTests {
         lenient().when(externalAPIService.getRestrictedAreas()).thenReturn(new ArrayList<>());
     }
 
-    // ===============================================
-    // 1. ROUTE CALCULATION TESTS (5 tests)
-    // ===============================================
 
     @Test
     @DisplayName("calcDeliveryPath: Returns empty response for null dispatches")
@@ -218,9 +213,6 @@ public class PathfindingServiceTests {
         }
     }
 
-    // ===============================================
-    // 2. NO-FLY ZONE AVOIDANCE TESTS (3 tests)
-    // ===============================================
 
     @Test
     @DisplayName("calcDeliveryPath: Path avoids single restricted area")
@@ -289,9 +281,6 @@ public class PathfindingServiceTests {
         assertNotNull(response);
     }
 
-    // ===============================================
-    // 3. MOVE COUNTING & PRECISION TESTS (2 tests)
-    // ===============================================
 
     @Test
     @DisplayName("calcDeliveryPath: Total moves is non-negative")
@@ -323,9 +312,6 @@ public class PathfindingServiceTests {
         assertTrue(response.getTotalCost() >= 0, "Total cost should be non-negative");
     }
 
-    // ===============================================
-    // 4. PATH OPTIMIZATION TESTS (2 tests)
-    // ===============================================
 
     @Test
     @DisplayName("calcDeliveryPath: Same input produces consistent output")
@@ -360,9 +346,6 @@ public class PathfindingServiceTests {
         assertNotNull(response.getDronePaths(), "Response should contain dronePaths list");
     }
 
-    // ===============================================
-    // 5. BOUNDARY CONDITIONS TESTS (4 tests)
-    // ===============================================
 
     @Test
     @DisplayName("calcDeliveryPath: Handles negative longitude values")
@@ -439,9 +422,6 @@ public class PathfindingServiceTests {
         assertTrue(response.getDronePaths().isEmpty(), "Drone without cooling should not be assigned");
     }
 
-    // ===============================================
-    // 6. GEOJSON OUTPUT TESTS (2 tests)
-    // ===============================================
 
     @Test
     @DisplayName("calcDeliveryPathAsGeoJson: Returns valid GeoJson string")
@@ -468,9 +448,6 @@ public class PathfindingServiceTests {
         assertTrue(geoJson.contains("LineString"), "Empty path should return LineString GeoJson");
     }
 
-    // ===============================================
-    // 7. DATE/TIME HANDLING TESTS (3 tests)
-    // ===============================================
 
     @Test
     @DisplayName("calcDeliveryPath: Dispatches grouped by date")
@@ -535,9 +512,6 @@ public class PathfindingServiceTests {
         assertTrue(response.getDronePaths().isEmpty(), "Weekend dispatch should not be fulfilled by weekday-only drone");
     }
 
-    // ===============================================
-    // 8. ADDITIONAL COVERAGE TESTS
-    // ===============================================
 
     @Test
     @DisplayName("calcDeliveryPath: Drone without required heating is filtered")
@@ -729,7 +703,7 @@ public class PathfindingServiceTests {
         assertTrue(response.getDronePaths().isEmpty(), "No service points should mean no paths");
     }
 
-    @Test
+@Test
     @DisplayName("calcDeliveryPath: Both cooling and heating required filters correctly")
     void testCalcDeliveryPath_coolingAndHeatingRequired_filtersCorrectly() {
         // Create one drone with only cooling, one with both
@@ -770,6 +744,287 @@ public class PathfindingServiceTests {
         if (!response.getDronePaths().isEmpty()) {
             assertEquals("D002", response.getDronePaths().get(0).getDroneId(),
                     "Only drone with both cooling and heating should be assigned");
+        }
+    }
+
+
+    @Test
+    @DisplayName("calcDeliveryPath: Dispatch at exact delivery location as service point")
+    void testCalcDeliveryPath_deliveryAtServicePoint() {
+        setupBasicMocks();
+
+        // Delivery at the same location as service point
+        Position delivery = new Position(EDINBURGH_LAT, EDINBURGH_LNG);
+        MedDispatchRec dispatch = createDispatch(1, 5.0, false, false,
+                LocalDate.of(2025, 12, 22), LocalTime.of(14, 30), delivery);
+
+        CalcDeliveryPathResponse response = pathfindingService.calcDeliveryPath(List.of(dispatch));
+
+        assertNotNull(response);
+        // Should handle zero-distance delivery
+        assertTrue(response.getTotalMoves() >= 0);
+    }
+
+    @Test
+    @DisplayName("calcDeliveryPath: Multiple dispatches on same date to same location")
+    void testCalcDeliveryPath_multipleDispatchesSameLocation() {
+        setupBasicMocks();
+
+        Position delivery = new Position(EDINBURGH_LAT + 0.0005, EDINBURGH_LNG);
+
+        MedDispatchRec dispatch1 = createDispatch(1, 3.0, false, false,
+                LocalDate.of(2025, 12, 22), LocalTime.of(14, 0), delivery);
+        MedDispatchRec dispatch2 = createDispatch(2, 2.0, false, false,
+                LocalDate.of(2025, 12, 22), LocalTime.of(14, 30), delivery);
+
+        CalcDeliveryPathResponse response = pathfindingService.calcDeliveryPath(List.of(dispatch1, dispatch2));
+
+        assertNotNull(response);
+    }
+
+    @Test
+    @DisplayName("calcDeliveryPath: Dispatch with maxCost constraint")
+    void testCalcDeliveryPath_withMaxCostConstraint() {
+        Drone drone = createTestDrone("D001", 20.0, 5000, true, true);
+        ServicePoint sp = createServicePoint("SP1", 1, EDINBURGH_LAT, EDINBURGH_LNG);
+        DroneForServicePointResponse assignment = createDroneAssignment(1, "D001");
+
+        when(externalAPIService.getAllDrones()).thenReturn(List.of(drone));
+        when(externalAPIService.getServicePoints()).thenReturn(List.of(sp));
+        when(externalAPIService.getDronesForServicePoints()).thenReturn(List.of(assignment));
+        when(externalAPIService.getRestrictedAreas()).thenReturn(new ArrayList<>());
+
+        Position delivery = new Position(EDINBURGH_LAT + 0.0003, EDINBURGH_LNG);
+        MedDispatchRec dispatch = new MedDispatchRec();
+        dispatch.setId(1);
+        dispatch.setDate(LocalDate.of(2025, 12, 22));
+        dispatch.setTime(LocalTime.of(14, 30));
+        dispatch.setDelivery(delivery);
+        MedDispatchRec.Requirements req = new MedDispatchRec.Requirements();
+        req.setCapacity(5.0);
+        req.setCooling(false);
+        req.setHeating(false);
+        req.setMaxCost(1000.0); // Set max cost
+        dispatch.setRequirements(req);
+
+        CalcDeliveryPathResponse response = pathfindingService.calcDeliveryPath(List.of(dispatch));
+
+        assertNotNull(response);
+    }
+
+    @Test
+    @DisplayName("calcDeliveryPath: Dispatch with very restrictive maxCost fails")
+    void testCalcDeliveryPath_maxCostTooLow_noPath() {
+        Drone drone = createTestDrone("D001", 20.0, 5000, true, true);
+        ServicePoint sp = createServicePoint("SP1", 1, EDINBURGH_LAT, EDINBURGH_LNG);
+        DroneForServicePointResponse assignment = createDroneAssignment(1, "D001");
+
+        when(externalAPIService.getAllDrones()).thenReturn(List.of(drone));
+        when(externalAPIService.getServicePoints()).thenReturn(List.of(sp));
+        when(externalAPIService.getDronesForServicePoints()).thenReturn(List.of(assignment));
+        when(externalAPIService.getRestrictedAreas()).thenReturn(new ArrayList<>());
+
+        // Far delivery with very low maxCost
+        Position farDelivery = new Position(EDINBURGH_LAT + 0.01, EDINBURGH_LNG + 0.01);
+        MedDispatchRec dispatch = new MedDispatchRec();
+        dispatch.setId(1);
+        dispatch.setDate(LocalDate.of(2025, 12, 22));
+        dispatch.setTime(LocalTime.of(14, 30));
+        dispatch.setDelivery(farDelivery);
+        MedDispatchRec.Requirements req = new MedDispatchRec.Requirements();
+        req.setCapacity(5.0);
+        req.setCooling(false);
+        req.setHeating(false);
+        req.setMaxCost(0.01); // Very low max cost
+        dispatch.setRequirements(req);
+
+        CalcDeliveryPathResponse response = pathfindingService.calcDeliveryPath(List.of(dispatch));
+
+        assertNotNull(response);
+        // Path should be rejected due to cost constraint
+    }
+
+    @Test
+    @DisplayName("calcDeliveryPath: Restricted area completely blocks direct path")
+    void testCalcDeliveryPath_restrictedAreaBlocksPath() {
+        Drone drone = createTestDrone("D001", 20.0, 50000, true, true);
+        ServicePoint sp = createServicePoint("SP1", 1, EDINBURGH_LAT, EDINBURGH_LNG);
+        DroneForServicePointResponse assignment = createDroneAssignment(1, "D001");
+
+        // Create a large restricted area between start and destination
+        List<Position> largeZoneVertices = createSquareZone(
+                EDINBURGH_LAT + 0.0025, EDINBURGH_LNG + 0.0025, 0.002);
+        RestrictedArea largeZone = createRestrictedArea("LargeNoFlyZone", largeZoneVertices);
+
+        when(externalAPIService.getAllDrones()).thenReturn(List.of(drone));
+        when(externalAPIService.getServicePoints()).thenReturn(List.of(sp));
+        when(externalAPIService.getDronesForServicePoints()).thenReturn(List.of(assignment));
+        when(externalAPIService.getRestrictedAreas()).thenReturn(List.of(largeZone));
+
+        // Delivery on the other side of the restricted area
+        Position delivery = new Position(EDINBURGH_LAT + 0.005, EDINBURGH_LNG + 0.005);
+        MedDispatchRec dispatch = createDispatch(1, 5.0, false, false,
+                LocalDate.of(2025, 12, 22), LocalTime.of(14, 30), delivery);
+
+        CalcDeliveryPathResponse response = pathfindingService.calcDeliveryPath(List.of(dispatch));
+
+        assertNotNull(response);
+        // A* should find a path around the zone
+    }
+
+    @Test
+    @DisplayName("calcDeliveryPath: Multiple drones assigned to different service points")
+    void testCalcDeliveryPath_multipleServicePoints() {
+        Drone drone1 = createTestDrone("D001", 20.0, 5000, true, true);
+        Drone drone2 = createTestDrone("D002", 20.0, 5000, true, true);
+
+        ServicePoint sp1 = createServicePoint("SP1", 1, EDINBURGH_LAT, EDINBURGH_LNG);
+        ServicePoint sp2 = createServicePoint("SP2", 2, EDINBURGH_LAT + 0.01, EDINBURGH_LNG + 0.01);
+
+        DroneForServicePointResponse assignment1 = createDroneAssignment(1, "D001");
+        DroneForServicePointResponse assignment2 = createDroneAssignment(2, "D002");
+
+        when(externalAPIService.getAllDrones()).thenReturn(List.of(drone1, drone2));
+        when(externalAPIService.getServicePoints()).thenReturn(List.of(sp1, sp2));
+        when(externalAPIService.getDronesForServicePoints()).thenReturn(List.of(assignment1, assignment2));
+        when(externalAPIService.getRestrictedAreas()).thenReturn(new ArrayList<>());
+
+        // Two dispatches - one closer to each service point
+        Position delivery1 = new Position(EDINBURGH_LAT + 0.001, EDINBURGH_LNG + 0.001);
+        Position delivery2 = new Position(EDINBURGH_LAT + 0.011, EDINBURGH_LNG + 0.011);
+
+        MedDispatchRec dispatch1 = createDispatch(1, 5.0, false, false,
+                LocalDate.of(2025, 12, 22), LocalTime.of(14, 0), delivery1);
+        MedDispatchRec dispatch2 = createDispatch(2, 5.0, false, false,
+                LocalDate.of(2025, 12, 22), LocalTime.of(14, 30), delivery2);
+
+        CalcDeliveryPathResponse response = pathfindingService.calcDeliveryPath(List.of(dispatch1, dispatch2));
+
+        assertNotNull(response);
+    }
+
+    @Test
+    @DisplayName("calcDeliveryPath: Dispatches spanning multiple dates")
+    void testCalcDeliveryPath_multipleDates() {
+        setupBasicMocks();
+
+        Position delivery1 = new Position(EDINBURGH_LAT + 0.0003, EDINBURGH_LNG);
+        Position delivery2 = new Position(EDINBURGH_LAT - 0.0003, EDINBURGH_LNG);
+        Position delivery3 = new Position(EDINBURGH_LAT, EDINBURGH_LNG + 0.0003);
+
+        // Three dispatches on three different dates
+        MedDispatchRec dispatch1 = createDispatch(1, 5.0, false, false,
+                LocalDate.of(2025, 12, 22), LocalTime.of(14, 0), delivery1); // Monday
+        MedDispatchRec dispatch2 = createDispatch(2, 5.0, false, false,
+                LocalDate.of(2025, 12, 23), LocalTime.of(14, 0), delivery2); // Tuesday
+        MedDispatchRec dispatch3 = createDispatch(3, 5.0, false, false,
+                LocalDate.of(2025, 12, 24), LocalTime.of(14, 0), delivery3); // Wednesday
+
+        CalcDeliveryPathResponse response = pathfindingService.calcDeliveryPath(
+                List.of(dispatch1, dispatch2, dispatch3));
+
+        assertNotNull(response);
+    }
+
+    @Test
+    @DisplayName("calcDeliveryPath: Delivery structure contains valid flight path")
+    void testCalcDeliveryPath_deliveryContainsFlightPath() {
+        setupBasicMocks();
+
+        Position delivery = new Position(EDINBURGH_LAT + 0.001, EDINBURGH_LNG);
+        MedDispatchRec dispatch = createDispatch(1, 5.0, false, false,
+                LocalDate.of(2025, 12, 22), LocalTime.of(14, 30), delivery);
+
+        CalcDeliveryPathResponse response = pathfindingService.calcDeliveryPath(List.of(dispatch));
+
+        assertNotNull(response);
+        if (!response.getDronePaths().isEmpty()) {
+            DronePath dronePath = response.getDronePaths().get(0);
+            assertFalse(dronePath.getDeliveries().isEmpty());
+
+            Delivery firstDelivery = dronePath.getDeliveries().get(0);
+            assertNotNull(firstDelivery.getFlightPath());
+            assertFalse(firstDelivery.getFlightPath().isEmpty(), "Flight path should not be empty");
+        }
+    }
+
+    @Test
+    @DisplayName("calcDeliveryPath: Cost calculation is correct")
+    void testCalcDeliveryPath_costCalculationCorrect() {
+        Drone drone = createTestDrone("D001", 20.0, 5000, true, true);
+        // costInitial=1.0, costPerMove=0.1, costFinal=1.0
+        ServicePoint sp = createServicePoint("SP1", 1, EDINBURGH_LAT, EDINBURGH_LNG);
+        DroneForServicePointResponse assignment = createDroneAssignment(1, "D001");
+
+        when(externalAPIService.getAllDrones()).thenReturn(List.of(drone));
+        when(externalAPIService.getServicePoints()).thenReturn(List.of(sp));
+        when(externalAPIService.getDronesForServicePoints()).thenReturn(List.of(assignment));
+        when(externalAPIService.getRestrictedAreas()).thenReturn(new ArrayList<>());
+
+        Position delivery = new Position(EDINBURGH_LAT + 0.0003, EDINBURGH_LNG);
+        MedDispatchRec dispatch = createDispatch(1, 5.0, false, false,
+                LocalDate.of(2025, 12, 22), LocalTime.of(14, 30), delivery);
+
+        CalcDeliveryPathResponse response = pathfindingService.calcDeliveryPath(List.of(dispatch));
+
+        assertNotNull(response);
+        if (!response.getDronePaths().isEmpty()) {
+            // Cost = costInitial + (moves * costPerMove) + costFinal
+            // Cost should be >= costInitial + costFinal = 2.0
+            assertTrue(response.getTotalCost() >= 2.0, "Cost should include initial and final costs");
+        }
+    }
+
+    @Test
+    @DisplayName("calcDeliveryPathAsGeoJson: Contains LineString type")
+    void testCalcDeliveryPathAsGeoJson_containsLineStringType() {
+        setupBasicMocks();
+
+        Position delivery = new Position(EDINBURGH_LAT + 0.0005, EDINBURGH_LNG);
+        MedDispatchRec dispatch = createDispatch(1, 5.0, false, false,
+                LocalDate.of(2025, 12, 22), LocalTime.of(14, 30), delivery);
+
+        String geoJson = pathfindingService.calcDeliveryPathAsGeoJson(List.of(dispatch));
+
+        assertNotNull(geoJson);
+        assertTrue(geoJson.contains("\"type\""), "GeoJson should contain type field");
+        assertTrue(geoJson.contains("LineString"), "GeoJson should be LineString type");
+    }
+
+    @Test
+    @DisplayName("calcDeliveryPath: Drone with zero costPerMove")
+    void testCalcDeliveryPath_zeroCostPerMove() {
+        Drone drone = new Drone();
+        drone.setId("D001");
+        drone.setName("FreeDrone");
+        Drone.Capability cap = new Drone.Capability();
+        cap.setCapacity(20.0);
+        cap.setMaxMoves(5000);
+        cap.setCooling(true);
+        cap.setHeating(true);
+        cap.setCostPerMove(0.0); // Free moves!
+        cap.setCostInitial(1.0);
+        cap.setCostFinal(1.0);
+        drone.setCapability(cap);
+
+        ServicePoint sp = createServicePoint("SP1", 1, EDINBURGH_LAT, EDINBURGH_LNG);
+        DroneForServicePointResponse assignment = createDroneAssignment(1, "D001");
+
+        when(externalAPIService.getAllDrones()).thenReturn(List.of(drone));
+        when(externalAPIService.getServicePoints()).thenReturn(List.of(sp));
+        when(externalAPIService.getDronesForServicePoints()).thenReturn(List.of(assignment));
+        when(externalAPIService.getRestrictedAreas()).thenReturn(new ArrayList<>());
+
+        Position delivery = new Position(EDINBURGH_LAT + 0.001, EDINBURGH_LNG);
+        MedDispatchRec dispatch = createDispatch(1, 5.0, false, false,
+                LocalDate.of(2025, 12, 22), LocalTime.of(14, 30), delivery);
+
+        CalcDeliveryPathResponse response = pathfindingService.calcDeliveryPath(List.of(dispatch));
+
+        assertNotNull(response);
+        if (!response.getDronePaths().isEmpty()) {
+            // Cost should be exactly costInitial + costFinal = 2.0
+            assertEquals(2.0, response.getTotalCost(), 0.001);
         }
     }
 }

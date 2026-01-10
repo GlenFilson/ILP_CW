@@ -38,9 +38,7 @@ public class ExternalAPIServiceTests {
         externalAPIService = new ExternalAPIService(restTemplate, TEST_ENDPOINT);
     }
 
-    // ===============================================
     // HELPER METHODS
-    // ===============================================
 
     private Drone createTestDrone(String id, String name, double capacity) {
         Drone drone = new Drone();
@@ -87,9 +85,6 @@ public class ExternalAPIServiceTests {
         return response;
     }
 
-    // ===============================================
-    // 1. FETCH DRONES TESTS (5 tests)
-    // ===============================================
 
     @Test
     @DisplayName("getAllDrones: Successfully fetches drones from API")
@@ -185,9 +180,6 @@ public class ExternalAPIServiceTests {
         assertTrue(result.isEmpty());
     }
 
-    // ===============================================
-    // 2. FETCH SERVICE POINTS TESTS (4 tests)
-    // ===============================================
 
     @Test
     @DisplayName("getServicePoints: Successfully fetches service points from API")
@@ -266,9 +258,6 @@ public class ExternalAPIServiceTests {
         assertTrue(result.isEmpty());
     }
 
-    // ===============================================
-    // 3. FETCH RESTRICTED AREAS TESTS (4 tests)
-    // ===============================================
 
     @Test
     @DisplayName("getRestrictedAreas: Successfully fetches restricted areas from API")
@@ -347,9 +336,6 @@ public class ExternalAPIServiceTests {
         assertTrue(result.isEmpty());
     }
 
-    // ===============================================
-    // 4. FETCH DRONES FOR SERVICE POINTS TESTS (4 tests)
-    // ===============================================
 
     @Test
     @DisplayName("getDronesForServicePoints: Successfully fetches assignments from API")
@@ -431,9 +417,6 @@ public class ExternalAPIServiceTests {
         assertTrue(result.isEmpty());
     }
 
-    // ===============================================
-    // 5. URL CONSTRUCTION TESTS (2 tests)
-    // ===============================================
 
     @Test
     @DisplayName("getAllDrones: Uses correct endpoint URL")

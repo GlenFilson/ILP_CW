@@ -46,9 +46,6 @@ public class ServiceControllerUnitTests {
     @InjectMocks
     private ServiceController serviceController;
 
-    // ===============================================
-    // INDEX AND UID TESTS
-    // ===============================================
 
     @Test
     @DisplayName("uid: Returns correct student ID")
@@ -57,9 +54,6 @@ public class ServiceControllerUnitTests {
         assertEquals("s2539057", result);
     }
 
-    // ===============================================
-    // DISTANCE TO TESTS
-    // ===============================================
 
     @Test
     @DisplayName("distanceTo: Returns distance from service")
@@ -79,9 +73,6 @@ public class ServiceControllerUnitTests {
         verify(distanceService).euclideanDistance(p1, p2);
     }
 
-    // ===============================================
-    // IS CLOSE TO TESTS
-    // ===============================================
 
     @Test
     @DisplayName("isCloseTo: Returns true when positions are close")
@@ -117,9 +108,6 @@ public class ServiceControllerUnitTests {
         assertEquals(false, response.getBody());
     }
 
-    // ===============================================
-    // NEXT POSITION TESTS
-    // ===============================================
 
     @Test
     @DisplayName("nextPosition: Returns next position from service")
@@ -145,9 +133,6 @@ public class ServiceControllerUnitTests {
         assertEquals(nextPos.getLng(), result.getLng());
     }
 
-    // ===============================================
-    // IS IN REGION TESTS
-    // ===============================================
 
     @Test
     @DisplayName("isInRegion: Returns true when position is in region")
@@ -199,9 +184,6 @@ public class ServiceControllerUnitTests {
         assertEquals(false, response.getBody());
     }
 
-    // ===============================================
-    // DRONES WITH COOLING TESTS
-    // ===============================================
 
     @Test
     @DisplayName("dronesWithCooling: Returns drones with cooling=true")
@@ -227,9 +209,6 @@ public class ServiceControllerUnitTests {
         assertEquals(expectedDrones, response.getBody());
     }
 
-    // ===============================================
-    // DRONE DETAILS TESTS
-    // ===============================================
 
     @Test
     @DisplayName("droneDetails: Returns drone when found")
@@ -257,9 +236,6 @@ public class ServiceControllerUnitTests {
         assertNull(response.getBody());
     }
 
-    // ===============================================
-    // QUERY AS PATH TESTS
-    // ===============================================
 
     @Test
     @DisplayName("queryAsPath: Returns matching drones")
@@ -284,9 +260,6 @@ public class ServiceControllerUnitTests {
         assertTrue(response.getBody().isEmpty());
     }
 
-    // ===============================================
-    // QUERY TESTS
-    // ===============================================
 
     @Test
     @DisplayName("query: Returns matching drones for query attributes")
@@ -316,9 +289,6 @@ public class ServiceControllerUnitTests {
         assertEquals(3, response.getBody().size());
     }
 
-    // ===============================================
-    // QUERY AVAILABLE DRONES TESTS
-    // ===============================================
 
     @Test
     @DisplayName("queryAvailableDrones: Returns available drones")
@@ -333,9 +303,6 @@ public class ServiceControllerUnitTests {
         assertEquals(expectedDrones, response.getBody());
     }
 
-    // ===============================================
-    // CALC DELIVERY PATH TESTS
-    // ===============================================
 
     @Test
     @DisplayName("calcDeliveryPath: Returns delivery path response")
@@ -354,9 +321,6 @@ public class ServiceControllerUnitTests {
         assertEquals(expectedResponse, response.getBody());
     }
 
-    // ===============================================
-    // CALC DELIVERY PATH AS GEOJSON TESTS
-    // ===============================================
 
     @Test
     @DisplayName("calcDeliveryPathAsGeoJson: Returns GeoJSON string")
@@ -372,9 +336,6 @@ public class ServiceControllerUnitTests {
         assertEquals(expectedGeoJson, response.getBody());
     }
 
-    // ===============================================
-    // TEST PATH WITH OBSTACLES TESTS
-    // ===============================================
 
     @Test
     @DisplayName("testPathWithObstacles: Returns FeatureCollection GeoJSON")
@@ -487,9 +448,6 @@ public class ServiceControllerUnitTests {
         assertTrue(response.getBody().contains("UnclosedZone"));
     }
 
-    // ===============================================
-    // RESTRICTED AREAS TESTS
-    // ===============================================
 
     @Test
     @DisplayName("getRestrictedAreas: Returns restricted areas from service")
@@ -524,9 +482,6 @@ public class ServiceControllerUnitTests {
         assertTrue(response.getBody().isEmpty());
     }
 
-    // ===============================================
-    // VALIDATION EXCEPTION HANDLER TESTS
-    // ===============================================
 
     @Test
     @DisplayName("handleValidationExceptions: Logs field errors")

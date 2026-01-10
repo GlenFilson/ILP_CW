@@ -327,6 +327,137 @@ public class DistanceServiceTests {
 
     }
 
+    @Test
+    public void testEuclideanDistance_negativeCoordinates() {
+        Position position1 = new Position(-10.0, -20.0);
+        Position position2 = new Position(-15.0, -25.0);
+        Double distance = distanceService.euclideanDistance(position1, position2);
+        assertEquals(Math.sqrt(50), distance, DISTANCE_DELTA);
+    }
 
+    @Test
+    public void testEuclideanDistance_mixedSignCoordinates() {
+        Position position1 = new Position(-5.0, 10.0);
+        Position position2 = new Position(5.0, -10.0);
+        Double distance = distanceService.euclideanDistance(position1, position2);
+        assertEquals(Math.sqrt(500), distance, DISTANCE_DELTA);
+    }
 
+    @Test
+    public void testIsCloseTo_exactlyAtThreshold() {
+        Position position1 = new Position(0.0, 0.0);
+        Position position2 = new Position(0.00015, 0.0);
+        assertFalse(distanceService.isCloseTo(position1, position2));
+    }
+
+    @Test
+    public void testIsCloseTo_justBelowThreshold() {
+        Position position1 = new Position(0.0, 0.0);
+        Position position2 = new Position(0.000149, 0.0);
+        assertTrue(distanceService.isCloseTo(position1, position2));
+    }
+
+    @Test
+    public void testNextPosition_angle0_movesEast() {
+        Position start = new Position(0.0, 0.0);
+        Position next = distanceService.nextPosition(start, 0.0);
+        assertEquals(0.0, next.getLat(), DISTANCE_DELTA);
+        assertEquals(0.00015, next.getLng(), DISTANCE_DELTA);
+    }
+
+    @Test
+    public void testNextPosition_angle90_movesNorth() {
+        Position start = new Position(0.0, 0.0);
+        Position next = distanceService.nextPosition(start, 90.0);
+        assertEquals(0.00015, next.getLat(), DISTANCE_DELTA);
+        assertEquals(0.0, next.getLng(), DISTANCE_DELTA);
+    }
+
+    @Test
+    public void testNextPosition_angle180_movesWest() {
+        Position start = new Position(0.0, 0.0);
+        Position next = distanceService.nextPosition(start, 180.0);
+        assertEquals(0.0, next.getLat(), DISTANCE_DELTA);
+        assertEquals(-0.00015, next.getLng(), DISTANCE_DELTA);
+    }
+
+    @Test
+    public void testNextPosition_angle270_movesSouth() {
+        Position start = new Position(0.0, 0.0);
+        Position next = distanceService.nextPosition(start, 270.0);
+        assertEquals(-0.00015, next.getLat(), DISTANCE_DELTA);
+        assertEquals(0.0, next.getLng(), DISTANCE_DELTA);
+    }
+
+    @Test
+    public void testIsInRegion_pointOnVertex() {
+        Region region = createSimpleRegion();
+        Position position = new Position(0.0, 1.0);
+        assertTrue(distanceService.isInRegion(position, region));
+    }
+
+    @Test
+    public void testIsInRegion_triangularRegion() {
+        List<Position> vertices = List.of(
+                new Position(0.0, 0.0),
+                new Position(2.0, 0.0),
+                new Position(1.0, 2.0),
+                new Position(0.0, 0.0)
+        );
+        Region triangle = new Region("triangle", vertices);
+
+        Position inside = new Position(1.0, 0.5);
+        assertTrue(distanceService.isInRegion(inside, triangle));
+
+        Position outside = new Position(1.0, 3.0);
+        assertFalse(distanceService.isInRegion(outside, triangle));
+    }
+
+    @Test
+    public void testIsInRegion_concaveRegion() {
+        List<Position> vertices = List.of(
+                new Position(0.0, 0.0),
+                new Position(2.0, 0.0),
+                new Position(2.0, 1.0),
+                new Position(1.0, 1.0),
+                new Position(1.0, 2.0),
+                new Position(0.0, 2.0),
+                new Position(0.0, 0.0)
+        );
+        Region concave = new Region("concave", vertices);
+
+        Position inside = new Position(0.5, 0.5);
+        assertTrue(distanceService.isInRegion(inside, concave));
+
+        Position inNotch = new Position(1.5, 1.5);
+        assertFalse(distanceService.isInRegion(inNotch, concave));
+    }
+
+    @Test
+    public void testNextPosition_preservesOriginalPosition() {
+        Position start = new Position(55.0, -3.0);
+        Position next = distanceService.nextPosition(start, 45.0);
+
+        assertEquals(55.0, start.getLat(), DISTANCE_DELTA);
+        assertEquals(-3.0, start.getLng(), DISTANCE_DELTA);
+
+        assertNotEquals(start.getLat(), next.getLat());
+    }
+
+    @Test
+    public void testEuclideanDistance_verySmallDistance() {
+        Position position1 = new Position(0.0, 0.0);
+        Position position2 = new Position(0.000001, 0.000001);
+        Double distance = distanceService.euclideanDistance(position1, position2);
+        assertTrue(distance > 0);
+        assertTrue(distance < 0.00001);
+    }
+
+    @Test
+    public void testEuclideanDistance_veryLargeDistance() {
+        Position position1 = new Position(-90.0, -180.0);
+        Position position2 = new Position(90.0, 180.0);
+        Double distance = distanceService.euclideanDistance(position1, position2);
+        assertEquals(Math.sqrt(162000), distance, DISTANCE_DELTA);
+    }
 }

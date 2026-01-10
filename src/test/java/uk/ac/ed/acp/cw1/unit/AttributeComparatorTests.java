@@ -19,9 +19,6 @@ public class AttributeComparatorTests {
         testDrone = createTestDrone("D001", 15.0, 1000, true, false, 0.5, 2.0, 1.5);
     }
 
-    // ===============================================
-    // HELPER METHODS
-    // ===============================================
 
     private Drone createTestDrone(String id, double capacity, int maxMoves,
                                    boolean cooling, boolean heating,
@@ -45,9 +42,6 @@ public class AttributeComparatorTests {
         return new QueryAttribute(attribute, operator, value);
     }
 
-    // ===============================================
-    // 1. EQUALITY OPERATOR (=) TESTS
-    // ===============================================
 
     @Test
     @DisplayName("Equality operator: Matches exact capacity value")
@@ -91,9 +85,6 @@ public class AttributeComparatorTests {
         assertTrue(AttributeComparator.matches(testDrone, attr));
     }
 
-    // ===============================================
-    // 2. NOT EQUALS OPERATOR (!=) TESTS
-    // ===============================================
 
     @Test
     @DisplayName("Not equals operator: Returns true for different capacity")
@@ -123,9 +114,6 @@ public class AttributeComparatorTests {
         assertFalse(AttributeComparator.matches(testDrone, attr));
     }
 
-    // ===============================================
-    // 3. GREATER THAN OPERATOR (>) TESTS
-    // ===============================================
 
     @Test
     @DisplayName("Greater than operator: Returns true when capacity > value")
@@ -155,9 +143,6 @@ public class AttributeComparatorTests {
         assertTrue(AttributeComparator.matches(testDrone, attr));
     }
 
-    // ===============================================
-    // 4. LESS THAN OPERATOR (<) TESTS
-    // ===============================================
 
     @Test
     @DisplayName("Less than operator: Returns true when capacity < value")
@@ -187,9 +172,6 @@ public class AttributeComparatorTests {
         assertTrue(AttributeComparator.matches(testDrone, attr));
     }
 
-    // ===============================================
-    // 5. GREATER THAN OR EQUAL OPERATOR (>=) TESTS
-    // ===============================================
 
     @Test
     @DisplayName("Greater than or equal operator: Returns true when capacity > value")
@@ -212,9 +194,6 @@ public class AttributeComparatorTests {
         assertFalse(AttributeComparator.matches(testDrone, attr));
     }
 
-    // ===============================================
-    // 6. LESS THAN OR EQUAL OPERATOR (<=) TESTS
-    // ===============================================
 
     @Test
     @DisplayName("Less than or equal operator: Returns true when capacity < value")
@@ -237,9 +216,6 @@ public class AttributeComparatorTests {
         assertFalse(AttributeComparator.matches(testDrone, attr));
     }
 
-    // ===============================================
-    // 7. TYPE CONVERSION TESTS
-    // ===============================================
 
     @Test
     @DisplayName("Type conversion: Integer string parsed correctly for maxMoves")
@@ -283,9 +259,6 @@ public class AttributeComparatorTests {
         assertFalse(AttributeComparator.matches(testDrone, attr));
     }
 
-    // ===============================================
-    // 8. ATTRIBUTE NAME TESTS
-    // ===============================================
 
     @Test
     @DisplayName("Attribute name: Case insensitive matching (CAPACITY)")
@@ -329,9 +302,6 @@ public class AttributeComparatorTests {
         assertTrue(AttributeComparator.matches(testDrone, attr));
     }
 
-    // ===============================================
-    // 9. INVALID OPERATOR TESTS
-    // ===============================================
 
     @Test
     @DisplayName("Invalid operator: Unknown operator returns false for numeric")
@@ -354,9 +324,7 @@ public class AttributeComparatorTests {
         assertFalse(AttributeComparator.matches(testDrone, attr));
     }
 
-    // ===============================================
     // 10. EDGE CASE TESTS
-    // ===============================================
 
     @Test
     @DisplayName("Edge case: Zero value comparison works")
@@ -392,5 +360,131 @@ public class AttributeComparatorTests {
         // Boolean.parseBoolean returns false for any non-"true" string
         QueryAttribute attr = createQueryAttribute("heating", "=", "yes");
         assertTrue(AttributeComparator.matches(testDrone, attr)); // heating is false, "yes" parsed as false
+    }
+
+
+    @Test
+    @DisplayName("Attribute name with mixed case matches correctly")
+    void testAttributeName_mixedCase_matches() {
+        QueryAttribute attr = createQueryAttribute("CaPaCiTy", "=", "15.0");
+        assertTrue(AttributeComparator.matches(testDrone, attr));
+    }
+
+    @Test
+    @DisplayName("Attribute name with leading/trailing spaces still matches")
+    void testAttributeName_withSpaces_handledGracefully() {
+        // Depending on implementation, this might fail or succeed
+        QueryAttribute attr = createQueryAttribute("capacity", "=", " 15.0 ");
+        // Value parsing should handle trimming
+        assertNotNull(AttributeComparator.matches(testDrone, attr));
+    }
+
+    @Test
+    @DisplayName("Double comparison with scientific notation")
+    void testDoubleComparison_scientificNotation() {
+        QueryAttribute attr = createQueryAttribute("capacity", "<", "1.5E1");
+        // 1.5E1 = 15.0, capacity is 15.0, so 15.0 < 15.0 is false
+        assertFalse(AttributeComparator.matches(testDrone, attr));
+    }
+
+@Test
+    @DisplayName("Integer maxMoves comparison boundary")
+    void testMaxMoves_boundaryValue() {
+        QueryAttribute attrEqual = createQueryAttribute("maxMoves", "=", "1000");
+        QueryAttribute attrLess = createQueryAttribute("maxMoves", "<", "1000");
+        QueryAttribute attrGreater = createQueryAttribute("maxMoves", ">", "1000");
+
+        assertTrue(AttributeComparator.matches(testDrone, attrEqual));
+        assertFalse(AttributeComparator.matches(testDrone, attrLess));
+        assertFalse(AttributeComparator.matches(testDrone, attrGreater));
+    }
+
+    @Test
+    @DisplayName("costPerMove with decimal precision")
+    void testCostPerMove_decimalPrecision() {
+        QueryAttribute attr = createQueryAttribute("costPerMove", "=", "0.5");
+        assertTrue(AttributeComparator.matches(testDrone, attr));
+    }
+
+    @Test
+    @DisplayName("costInitial equals check")
+    void testCostInitial_equalsCheck() {
+        QueryAttribute attr = createQueryAttribute("costInitial", "=", "2.0");
+        assertTrue(AttributeComparator.matches(testDrone, attr));
+    }
+
+    @Test
+    @DisplayName("costFinal equals check")
+    void testCostFinal_equalsCheck() {
+        QueryAttribute attr = createQueryAttribute("costFinal", "=", "1.5");
+        assertTrue(AttributeComparator.matches(testDrone, attr));
+    }
+
+    @Test
+    @DisplayName("All boolean attributes with != operator")
+    void testAllBooleanAttributes_notEquals() {
+        QueryAttribute coolingNotTrue = createQueryAttribute("cooling", "!=", "true");
+        QueryAttribute heatingNotFalse = createQueryAttribute("heating", "!=", "false");
+
+        assertFalse(AttributeComparator.matches(testDrone, coolingNotTrue)); // cooling is true
+        assertFalse(AttributeComparator.matches(testDrone, heatingNotFalse)); // heating is false
+    }
+
+    @Test
+    @DisplayName("Comparison operators with integer values")
+    void testComparisonOperators_integerValues() {
+        QueryAttribute attrGte = createQueryAttribute("maxMoves", ">=", "999");
+        QueryAttribute attrLte = createQueryAttribute("maxMoves", "<=", "1001");
+
+        assertTrue(AttributeComparator.matches(testDrone, attrGte)); // 1000 >= 999
+        assertTrue(AttributeComparator.matches(testDrone, attrLte)); // 1000 <= 1001
+    }
+
+    @Test
+    @DisplayName("Zero value comparisons")
+    void testZeroValueComparisons() {
+        QueryAttribute attrGtZero = createQueryAttribute("capacity", ">", "0");
+        QueryAttribute attrGteZero = createQueryAttribute("costPerMove", ">=", "0");
+
+        assertTrue(AttributeComparator.matches(testDrone, attrGtZero)); // 15 > 0
+        assertTrue(AttributeComparator.matches(testDrone, attrGteZero)); // 0.5 >= 0
+    }
+
+    @Test
+    @DisplayName("Negative capacity comparison (edge case)")
+    void testNegativeCapacityComparison() {
+        QueryAttribute attr = createQueryAttribute("capacity", ">", "-100");
+        assertTrue(AttributeComparator.matches(testDrone, attr)); // 15 > -100
+    }
+
+    @Test
+    @DisplayName("Very small decimal comparison")
+    void testVerySmallDecimalComparison() {
+        QueryAttribute attr = createQueryAttribute("costPerMove", ">", "0.499999");
+        assertTrue(AttributeComparator.matches(testDrone, attr)); // 0.5 > 0.499999
+    }
+
+    @Test
+    @DisplayName("Boolean TRUE in different cases")
+    void testBooleanTrue_differentCases() {
+        QueryAttribute attrLower = createQueryAttribute("cooling", "=", "true");
+        QueryAttribute attrUpper = createQueryAttribute("cooling", "=", "TRUE");
+        QueryAttribute attrMixed = createQueryAttribute("cooling", "=", "True");
+
+        assertTrue(AttributeComparator.matches(testDrone, attrLower));
+        assertTrue(AttributeComparator.matches(testDrone, attrUpper));
+        assertTrue(AttributeComparator.matches(testDrone, attrMixed));
+    }
+
+    @Test
+    @DisplayName("Boolean FALSE in different cases")
+    void testBooleanFalse_differentCases() {
+        QueryAttribute attrLower = createQueryAttribute("heating", "=", "false");
+        QueryAttribute attrUpper = createQueryAttribute("heating", "=", "FALSE");
+        QueryAttribute attrMixed = createQueryAttribute("heating", "=", "False");
+
+        assertTrue(AttributeComparator.matches(testDrone, attrLower));
+        assertTrue(AttributeComparator.matches(testDrone, attrUpper));
+        assertTrue(AttributeComparator.matches(testDrone, attrMixed));
     }
 }

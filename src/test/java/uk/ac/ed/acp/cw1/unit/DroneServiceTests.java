@@ -286,7 +286,7 @@ public class DroneServiceTests {
 
         MedDispatchRec dispatch = new MedDispatchRec(
                 1,
-                LocalDate.of(2024, 1, 8), // Monday
+                LocalDate.of(2024, 1, 8),
                 LocalTime.of(10, 0),
                 new MedDispatchRec.Requirements(5.0, false, false, null),
                 new Position(55.1, -3.1)
@@ -307,7 +307,7 @@ public class DroneServiceTests {
 
         MedDispatchRec dispatch = new MedDispatchRec(
                 1,
-                LocalDate.of(2024, 1, 8), // Monday
+                LocalDate.of(2024, 1, 8),
                 LocalTime.of(10, 0),
                 new MedDispatchRec.Requirements(5.0, true, false, null),
                 new Position(55.1, -3.1)
@@ -337,7 +337,7 @@ public class DroneServiceTests {
 
         MedDispatchRec dispatch = new MedDispatchRec(
                 1,
-                LocalDate.of(2024, 1, 8), // Monday
+                LocalDate.of(2024, 1, 8),
                 LocalTime.of(10, 0),
                 new MedDispatchRec.Requirements(5.0, false, true, null),
                 new Position(55.1, -3.1)
@@ -362,14 +362,12 @@ public class DroneServiceTests {
         when(externalAPIService.getAllDrones()).thenReturn(testDrones);
         when(externalAPIService.getServicePoints()).thenReturn(testServicePoints);
         when(externalAPIService.getDronesForServicePoints()).thenReturn(testDroneAssignments);
-        // Note: euclideanDistance stubbing not needed here because capacity check fails first,
-        // before distance calculation is ever reached
 
         MedDispatchRec dispatch = new MedDispatchRec(
                 1,
-                LocalDate.of(2024, 1, 8), // Monday
+                LocalDate.of(2024, 1, 8),
                 LocalTime.of(10, 0),
-                new MedDispatchRec.Requirements(25.0, false, false, null), // Higher than any drone capacity
+                new MedDispatchRec.Requirements(25.0, false, false, null),
                 new Position(55.1, -3.1)
         );
 
@@ -378,29 +376,25 @@ public class DroneServiceTests {
         assertTrue(result.isEmpty());
     }
 
-    // ===============================================
-    // ADDITIONAL COVERAGE TESTS
-    // ===============================================
-
     @Test
     void testQueryAvailableDrones_withMaxCostConstraint_filtersCorrectly() {
         when(externalAPIService.getAllDrones()).thenReturn(testDrones);
         when(externalAPIService.getServicePoints()).thenReturn(testServicePoints);
         when(externalAPIService.getDronesForServicePoints()).thenReturn(testDroneAssignments);
         when(distanceService.euclideanDistance(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
-                .thenReturn(0.0001); // Very short distance
+                .thenReturn(0.0001);
 
         MedDispatchRec dispatch = new MedDispatchRec(
                 1,
-                LocalDate.of(2024, 1, 8), // Monday
+                LocalDate.of(2024, 1, 8),
                 LocalTime.of(10, 0),
-                new MedDispatchRec.Requirements(5.0, false, false, 100.0), // maxCost = 100.0
+                new MedDispatchRec.Requirements(5.0, false, false, 100.0),
                 new Position(55.1, -3.1)
         );
 
         List<String> result = droneService.queryAvailableDrones(List.of(dispatch));
 
-        // Should return drones that can deliver within cost constraint
+       
         assertNotNull(result);
     }
 
@@ -410,19 +404,19 @@ public class DroneServiceTests {
         when(externalAPIService.getServicePoints()).thenReturn(testServicePoints);
         when(externalAPIService.getDronesForServicePoints()).thenReturn(testDroneAssignments);
         when(distanceService.euclideanDistance(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
-                .thenReturn(1.0); // Large distance = high cost
+                .thenReturn(1.0);
 
         MedDispatchRec dispatch = new MedDispatchRec(
                 1,
-                LocalDate.of(2024, 1, 8), // Monday
+                LocalDate.of(2024, 1, 8),
                 LocalTime.of(10, 0),
-                new MedDispatchRec.Requirements(5.0, false, false, 0.01), // Very low maxCost
+                new MedDispatchRec.Requirements(5.0, false, false, 0.01),
                 new Position(55.1, -3.1)
         );
 
         List<String> result = droneService.queryAvailableDrones(List.of(dispatch));
 
-        // Should filter out drones that can't meet the cost constraint
+       
         assertTrue(result.isEmpty());
     }
 
@@ -436,7 +430,7 @@ public class DroneServiceTests {
 
         MedDispatchRec dispatch1 = new MedDispatchRec(
                 1,
-                LocalDate.of(2024, 1, 8), // Monday
+                LocalDate.of(2024, 1, 8),
                 LocalTime.of(10, 0),
                 new MedDispatchRec.Requirements(3.0, false, false, null),
                 new Position(55.1, -3.1)
@@ -444,7 +438,7 @@ public class DroneServiceTests {
 
         MedDispatchRec dispatch2 = new MedDispatchRec(
                 2,
-                LocalDate.of(2024, 1, 8), // Monday
+                LocalDate.of(2024, 1, 8),
                 LocalTime.of(11, 0),
                 new MedDispatchRec.Requirements(4.0, false, false, null),
                 new Position(55.2, -3.2)
@@ -452,7 +446,7 @@ public class DroneServiceTests {
 
         List<String> result = droneService.queryAvailableDrones(List.of(dispatch1, dispatch2));
 
-        // Drones must be able to handle both dispatches
+       
         assertNotNull(result);
     }
 
@@ -466,15 +460,15 @@ public class DroneServiceTests {
 
         MedDispatchRec dispatch = new MedDispatchRec(
                 1,
-                LocalDate.of(2024, 1, 8), // Monday
+                LocalDate.of(2024, 1, 8),
                 LocalTime.of(10, 0),
-                new MedDispatchRec.Requirements(5.0, true, true, null), // Both cooling AND heating
+                new MedDispatchRec.Requirements(5.0, true, true, null),
                 new Position(55.1, -3.1)
         );
 
         List<String> result = droneService.queryAvailableDrones(List.of(dispatch));
 
-        // Only D003 has both cooling and heating
+       
         for (String droneId : result) {
             Drone drone = testDrones.stream()
                     .filter(d -> d.getId().equals(droneId))
@@ -491,7 +485,7 @@ public class DroneServiceTests {
         // Create drone with very low maxMoves
         List<Drone> limitedDrones = List.of(
                 new Drone("LimitedDrone", "D100",
-                        new Drone.Capability(true, true, 50.0, 10, 0.5, 1.0, 1.0)) // Only 10 max moves
+                        new Drone.Capability(true, true, 50.0, 10, 0.5, 1.0, 1.0))
         );
 
         when(externalAPIService.getAllDrones()).thenReturn(limitedDrones);
@@ -507,14 +501,14 @@ public class DroneServiceTests {
 
         // Large distance requires many moves
         when(distanceService.euclideanDistance(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
-                .thenReturn(1.0); // 1.0 / 0.00015 = ~6667 moves one way
+                .thenReturn(1.0);
 
         MedDispatchRec dispatch = new MedDispatchRec(
                 1,
-                LocalDate.of(2024, 1, 8), // Monday
+                LocalDate.of(2024, 1, 8),
                 LocalTime.of(10, 0),
                 new MedDispatchRec.Requirements(5.0, false, false, null),
-                new Position(60.0, -10.0) // Far away
+                new Position(60.0, -10.0)
         );
 
         List<String> result = droneService.queryAvailableDrones(List.of(dispatch));
@@ -534,7 +528,7 @@ public class DroneServiceTests {
         List<String> result = droneService.query(attributes);
 
         assertEquals(1, result.size());
-        assertTrue(result.contains("D002")); // D002 has cooling = false
+        assertTrue(result.contains("D002"));
     }
 
     @Test
@@ -548,8 +542,8 @@ public class DroneServiceTests {
         List<String> result = droneService.query(attributes);
 
         assertEquals(2, result.size());
-        assertTrue(result.contains("D002")); // capacity = 20.0
-        assertTrue(result.contains("D003")); // capacity = 15.0
+        assertTrue(result.contains("D002"));
+        assertTrue(result.contains("D003"));
     }
 
     @Test
@@ -563,8 +557,8 @@ public class DroneServiceTests {
         List<String> result = droneService.query(attributes);
 
         assertEquals(2, result.size());
-        assertTrue(result.contains("D001")); // capacity = 10.0
-        assertTrue(result.contains("D003")); // capacity = 15.0
+        assertTrue(result.contains("D001"));
+        assertTrue(result.contains("D003"));
     }
 
     @Test
@@ -578,7 +572,7 @@ public class DroneServiceTests {
         List<String> result = droneService.query(attributes);
 
         assertEquals(1, result.size());
-        assertTrue(result.contains("D002")); // costPerMove = 0.3
+        assertTrue(result.contains("D002"));
     }
 
     @Test
@@ -605,7 +599,7 @@ public class DroneServiceTests {
     void testGetDroneById_caseInsensitiveId_returnsNull() {
         when(externalAPIService.getAllDrones()).thenReturn(testDrones);
 
-        // IDs are case-sensitive, so "d001" should not match "D001"
+       
         Drone result = droneService.getDroneById("d001");
 
         assertNull(result);
@@ -617,10 +611,9 @@ public class DroneServiceTests {
         when(externalAPIService.getServicePoints()).thenReturn(testServicePoints);
         when(externalAPIService.getDronesForServicePoints()).thenReturn(testDroneAssignments);
 
-        // Wednesday - drones only available Monday and Tuesday in test setup
         MedDispatchRec dispatch = new MedDispatchRec(
                 1,
-                LocalDate.of(2024, 1, 10), // Wednesday
+                LocalDate.of(2024, 1, 10),
                 LocalTime.of(10, 0),
                 new MedDispatchRec.Requirements(5.0, false, false, null),
                 new Position(55.1, -3.1)
@@ -637,18 +630,198 @@ public class DroneServiceTests {
         when(externalAPIService.getServicePoints()).thenReturn(testServicePoints);
         when(externalAPIService.getDronesForServicePoints()).thenReturn(testDroneAssignments);
 
-        // 7am - before availability window (8am-6pm on Monday)
+       
         MedDispatchRec dispatch = new MedDispatchRec(
                 1,
-                LocalDate.of(2024, 1, 8), // Monday
-                LocalTime.of(7, 0), // Before 8am availability
+                LocalDate.of(2024, 1, 8),
+                LocalTime.of(7, 0),
                 new MedDispatchRec.Requirements(5.0, false, false, null),
                 new Position(55.1, -3.1)
         );
 
         List<String> result = droneService.queryAvailableDrones(List.of(dispatch));
 
-        // Drones should be filtered out if dispatch time is before their availability
+       
         assertNotNull(result);
+    }
+
+
+    @Test
+    void testQueryAvailableDrones_timeAtExactBoundary_start() {
+        when(externalAPIService.getAllDrones()).thenReturn(testDrones);
+        when(externalAPIService.getServicePoints()).thenReturn(testServicePoints);
+        when(externalAPIService.getDronesForServicePoints()).thenReturn(testDroneAssignments);
+        when(distanceService.euclideanDistance(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(0.001);
+
+       
+        MedDispatchRec dispatch = new MedDispatchRec(
+                1,
+                LocalDate.of(2024, 1, 8),
+                LocalTime.of(8, 0),
+                new MedDispatchRec.Requirements(5.0, false, false, null),
+                new Position(55.1, -3.1)
+        );
+
+        List<String> result = droneService.queryAvailableDrones(List.of(dispatch));
+
+       
+        assertNotNull(result);
+        assertFalse(result.isEmpty());
+    }
+
+    @Test
+    void testQueryAvailableDrones_timeAtExactBoundary_end() {
+        when(externalAPIService.getAllDrones()).thenReturn(testDrones);
+        when(externalAPIService.getServicePoints()).thenReturn(testServicePoints);
+        when(externalAPIService.getDronesForServicePoints()).thenReturn(testDroneAssignments);
+        when(distanceService.euclideanDistance(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(0.001);
+
+       
+        MedDispatchRec dispatch = new MedDispatchRec(
+                1,
+                LocalDate.of(2024, 1, 8),
+                LocalTime.of(18, 0),
+                new MedDispatchRec.Requirements(5.0, false, false, null),
+                new Position(55.1, -3.1)
+        );
+
+        List<String> result = droneService.queryAvailableDrones(List.of(dispatch));
+
+        assertNotNull(result);
+    }
+
+    @Test
+    void testQueryAvailableDrones_dispatchesOnDifferentDays() {
+        when(externalAPIService.getAllDrones()).thenReturn(testDrones);
+        when(externalAPIService.getServicePoints()).thenReturn(testServicePoints);
+        when(externalAPIService.getDronesForServicePoints()).thenReturn(testDroneAssignments);
+        when(distanceService.euclideanDistance(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(0.001);
+
+       
+        MedDispatchRec dispatch1 = new MedDispatchRec(
+                1,
+                LocalDate.of(2024, 1, 8),
+                LocalTime.of(10, 0),
+                new MedDispatchRec.Requirements(5.0, false, false, null),
+                new Position(55.1, -3.1)
+        );
+
+        MedDispatchRec dispatch2 = new MedDispatchRec(
+                2,
+                LocalDate.of(2024, 1, 9),
+                LocalTime.of(10, 0),
+                new MedDispatchRec.Requirements(5.0, false, false, null),
+                new Position(55.2, -3.2)
+        );
+
+        List<String> result = droneService.queryAvailableDrones(List.of(dispatch1, dispatch2));
+
+       
+        assertNotNull(result);
+    }
+
+    @Test
+    void testQueryAvailableDrones_droneNotInAssignment() {
+        // Create a drone that exists but is not in any service point assignment
+        List<Drone> dronesWithUnassigned = new ArrayList<>(testDrones);
+        dronesWithUnassigned.add(new Drone("UnassignedDrone", "D999",
+                new Drone.Capability(true, true, 50.0, 5000, 0.1, 1.0, 1.0)));
+
+        when(externalAPIService.getAllDrones()).thenReturn(dronesWithUnassigned);
+        when(externalAPIService.getServicePoints()).thenReturn(testServicePoints);
+        when(externalAPIService.getDronesForServicePoints()).thenReturn(testDroneAssignments);
+        when(distanceService.euclideanDistance(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(0.001);
+
+        MedDispatchRec dispatch = new MedDispatchRec(
+                1,
+                LocalDate.of(2024, 1, 8),
+                LocalTime.of(10, 0),
+                new MedDispatchRec.Requirements(5.0, false, false, null),
+                new Position(55.1, -3.1)
+        );
+
+        List<String> result = droneService.queryAvailableDrones(List.of(dispatch));
+
+       
+        assertFalse(result.contains("D999"));
+    }
+
+    @Test
+    void testQuery_multipleAttributesWithDifferentOperators() {
+        when(externalAPIService.getAllDrones()).thenReturn(testDrones);
+
+        List<QueryAttribute> attributes = List.of(
+                new QueryAttribute("capacity", ">=", "10.0"),
+                new QueryAttribute("maxMoves", "<", "2000"),
+                new QueryAttribute("cooling", "=", "true")
+        );
+
+        List<String> result = droneService.query(attributes);
+
+        // D001: capacity=10, maxMoves=1000, cooling=true -> matches
+        // D002: capacity=20, maxMoves=2000, cooling=false -> fails cooling
+        // D003: capacity=15, maxMoves=1500, cooling=true -> matches
+        assertEquals(2, result.size());
+        assertTrue(result.contains("D001"));
+        assertTrue(result.contains("D003"));
+    }
+
+    @Test
+    void testQueryAvailableDrones_allConstraintsApplied() {
+        // Test with capacity, cooling, heating, and maxCost all at once
+        when(externalAPIService.getAllDrones()).thenReturn(testDrones);
+        when(externalAPIService.getServicePoints()).thenReturn(testServicePoints);
+        when(externalAPIService.getDronesForServicePoints()).thenReturn(testDroneAssignments);
+        when(distanceService.euclideanDistance(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(0.0001);
+
+        MedDispatchRec dispatch = new MedDispatchRec(
+                1,
+                LocalDate.of(2024, 1, 8),
+                LocalTime.of(10, 0),
+                new MedDispatchRec.Requirements(14.0, true, true, 1000.0), // capacity=14, cooling, heating, maxCost=1000
+                new Position(55.1, -3.1)
+        );
+
+        List<String> result = droneService.queryAvailableDrones(List.of(dispatch));
+
+        // Only D003 has capacity >= 14, cooling=true, heating=true
+        assertNotNull(result);
+    }
+
+    @Test
+    void testGetDronesWithCooling_allDronesHaveCooling() {
+        List<Drone> allCoolingDrones = List.of(
+                new Drone("CoolDrone1", "C001", new Drone.Capability(true, false, 10.0, 1000, 0.5, 1.0, 1.0)),
+                new Drone("CoolDrone2", "C002", new Drone.Capability(true, true, 15.0, 1500, 0.4, 1.5, 1.5))
+        );
+
+        when(externalAPIService.getAllDrones()).thenReturn(allCoolingDrones);
+
+        List<String> result = droneService.getDronesWithCooling(true);
+
+        assertEquals(2, result.size());
+        assertTrue(result.contains("C001"));
+        assertTrue(result.contains("C002"));
+    }
+
+    @Test
+    void testGetDronesWithCooling_noDronesHaveCooling() {
+        List<Drone> noCoolingDrones = List.of(
+                new Drone("HotDrone1", "H001", new Drone.Capability(false, true, 10.0, 1000, 0.5, 1.0, 1.0)),
+                new Drone("HotDrone2", "H002", new Drone.Capability(false, false, 15.0, 1500, 0.4, 1.5, 1.5))
+        );
+
+        when(externalAPIService.getAllDrones()).thenReturn(noCoolingDrones);
+
+        List<String> resultWithCooling = droneService.getDronesWithCooling(true);
+        List<String> resultWithoutCooling = droneService.getDronesWithCooling(false);
+
+        assertTrue(resultWithCooling.isEmpty());
+        assertEquals(2, resultWithoutCooling.size());
     }
 }
