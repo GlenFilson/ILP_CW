@@ -10,7 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import static org.assertj.core.api.Assertions.assertThat;
-
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import static org.assertj.core.api.AssertionsForClassTypes.within;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -1248,5 +1248,474 @@ public class ServiceControllerTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonRequest))
                 .andExpect(status().isBadRequest());
+    }
+
+    // ===============================================
+    // GROUP 2 - Static Queries Tests (CW2)
+    // ===============================================
+
+    @Test
+    void testGetDronesWithCooling_true_returnsListOfDronesWithCooling() throws Exception {
+        mockMvc.perform(get("/api/v1/dronesWithCooling/true")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON));
+    }
+
+    @Test
+    void testGetDronesWithCooling_false_returnsListOfDronesWithoutCooling() throws Exception {
+        mockMvc.perform(get("/api/v1/dronesWithCooling/false")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON));
+    }
+
+    @Test
+    void testGetDronesWithCooling_invalidValue_returnsBadRequest() throws Exception {
+        mockMvc.perform(get("/api/v1/dronesWithCooling/maybe")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void testGetDroneDetails_validId_returnsDroneObject() throws Exception {
+        MvcResult result = mockMvc.perform(get("/api/v1/droneDetails/1")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andReturn();
+
+        String content = result.getResponse().getContentAsString();
+        JsonNode node = new ObjectMapper().readTree(content);
+        assertTrue(node.has("id"));
+        assertTrue(node.has("name"));
+        assertTrue(node.has("capability"));
+    }
+
+    @Test
+    void testGetDroneDetails_invalidId_returns404() throws Exception {
+        mockMvc.perform(get("/api/v1/droneDetails/99999")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void testGetDroneDetails_zeroId_returns404() throws Exception {
+        mockMvc.perform(get("/api/v1/droneDetails/0")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound());
+    }
+
+    // ===============================================
+    // GROUP 3 - Dynamic Queries Tests (CW2)
+    // ===============================================
+
+    @Test
+    void testQueryAsPath_capacity_returnsMatchingDrones() throws Exception {
+        mockMvc.perform(get("/api/v1/queryAsPath/capacity/15")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON));
+    }
+
+    @Test
+    void testQueryAsPath_cooling_returnsMatchingDrones() throws Exception {
+        mockMvc.perform(get("/api/v1/queryAsPath/cooling/true")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON));
+    }
+
+    @Test
+    void testQueryAsPath_maxMoves_returnsMatchingDrones() throws Exception {
+        mockMvc.perform(get("/api/v1/queryAsPath/maxMoves/5000")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON));
+    }
+
+    @Test
+    void testQueryAsPath_invalidAttribute_returnsEmptyList() throws Exception {
+        mockMvc.perform(get("/api/v1/queryAsPath/invalidAttribute/value")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void testQueryPost_singleCondition_returnsMatchingDrones() throws Exception {
+        String jsonRequest = """
+                [
+                    {
+                        "attribute": "capacity",
+                        "operator": "=",
+                        "value": "15"
+                    }
+                ]
+                """;
+        mockMvc.perform(post("/api/v1/query")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON));
+    }
+
+    @Test
+    void testQueryPost_multipleConditions_returnsMatchingDrones() throws Exception {
+        String jsonRequest = """
+                [
+                    {
+                        "attribute": "capacity",
+                        "operator": ">",
+                        "value": "10"
+                    },
+                    {
+                        "attribute": "cooling",
+                        "operator": "=",
+                        "value": "true"
+                    }
+                ]
+                """;
+        mockMvc.perform(post("/api/v1/query")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void testQueryPost_lessThanOperator_returnsCorrectDrones() throws Exception {
+        String jsonRequest = """
+                [
+                    {
+                        "attribute": "capacity",
+                        "operator": "<",
+                        "value": "20"
+                    }
+                ]
+                """;
+        mockMvc.perform(post("/api/v1/query")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void testQueryPost_notEqualsOperator_returnsCorrectDrones() throws Exception {
+        String jsonRequest = """
+                [
+                    {
+                        "attribute": "heating",
+                        "operator": "!=",
+                        "value": "true"
+                    }
+                ]
+                """;
+        mockMvc.perform(post("/api/v1/query")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void testQueryPost_emptyArray_returnsAllDrones() throws Exception {
+        String jsonRequest = "[]";
+        mockMvc.perform(post("/api/v1/query")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void testQueryPost_invalidAttribute_returnsEmptyList() throws Exception {
+        String jsonRequest = """
+                [
+                    {
+                        "attribute": "nonexistent",
+                        "operator": "=",
+                        "value": "value"
+                    }
+                ]
+                """;
+        mockMvc.perform(post("/api/v1/query")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(status().isOk());
+    }
+
+    // ===============================================
+    // GROUP 4 - Drone Availability Tests (CW2)
+    // ===============================================
+
+    @Test
+    void testQueryAvailableDrones_simpleOrder_returnsAvailableDrones() throws Exception {
+        String jsonRequest = """
+                [
+                    {
+                        "id": 1,
+                        "date": "2025-12-22",
+                        "time": "14:30",
+                        "delivery": { "lng": -3.188267, "lat": 55.944425 },
+                        "requirements": {
+                            "capacity": 5.0,
+                            "cooling": false,
+                            "heating": false
+                        }
+                    }
+                ]
+                """;
+        mockMvc.perform(post("/api/v1/queryAvailableDrones")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void testQueryAvailableDrones_withCoolingRequirement_returnsOnlyDronesWithCooling() throws Exception {
+        String jsonRequest = """
+                [
+                    {
+                        "id": 1,
+                        "date": "2025-12-22",
+                        "time": "14:30",
+                        "delivery": { "lng": -3.188267, "lat": 55.944425 },
+                        "requirements": {
+                            "capacity": 5.0,
+                            "cooling": true,
+                            "heating": false
+                        }
+                    }
+                ]
+                """;
+        mockMvc.perform(post("/api/v1/queryAvailableDrones")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void testQueryAvailableDrones_multipleOrders_allMustMatch() throws Exception {
+        String jsonRequest = """
+                [
+                    {
+                        "id": 1,
+                        "date": "2025-12-22",
+                        "time": "14:30",
+                        "delivery": { "lng": -3.188267, "lat": 55.944425 },
+                        "requirements": {
+                            "capacity": 5.0,
+                            "cooling": false
+                        }
+                    },
+                    {
+                        "id": 2,
+                        "date": "2025-12-22",
+                        "time": "14:30",
+                        "delivery": { "lng": -3.186874, "lat": 55.943210 },
+                        "requirements": {
+                            "capacity": 3.0,
+                            "heating": false
+                        }
+                    }
+                ]
+                """;
+        mockMvc.perform(post("/api/v1/queryAvailableDrones")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void testQueryAvailableDrones_exceededCapacity_returnsEmptyList() throws Exception {
+        String jsonRequest = """
+                [
+                    {
+                        "id": 1,
+                        "date": "2025-12-22",
+                        "time": "14:30",
+                        "delivery": { "lng": -3.188267, "lat": 55.944425 },
+                        "requirements": {
+                            "capacity": 1000.0
+                        }
+                    }
+                ]
+                """;
+        mockMvc.perform(post("/api/v1/queryAvailableDrones")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void testQueryAvailableDrones_invalidDate_returnsBadRequest() throws Exception {
+        String jsonRequest = """
+                [
+                    {
+                        "id": 1,
+                        "date": "invalid-date",
+                        "time": "14:30",
+                        "delivery": { "lng": -3.188267, "lat": 55.944425 },
+                        "requirements": {
+                            "capacity": 5.0
+                        }
+                    }
+                ]
+                """;
+        mockMvc.perform(post("/api/v1/queryAvailableDrones")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void testQueryAvailableDrones_invalidTime_returnsBadRequest() throws Exception {
+        String jsonRequest = """
+                [
+                    {
+                        "id": 1,
+                        "date": "2025-12-22",
+                        "time": "25:99",
+                        "delivery": { "lng": -3.188267, "lat": 55.944425 },
+                        "requirements": {
+                            "capacity": 5.0
+                        }
+                    }
+                ]
+                """;
+        mockMvc.perform(post("/api/v1/queryAvailableDrones")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(status().isBadRequest());
+    }
+
+    // ===============================================
+    // GROUP 5 - Route Planning Tests (CW2)
+    // ===============================================
+
+    @Test
+    void testCalcDeliveryPath_simpleCase_returnsValidDeliveryPath() throws Exception {
+        String jsonRequest = """
+                [
+                    {
+                        "id": 1,
+                        "date": "2025-12-22",
+                        "time": "14:30",
+                        "delivery": { "lng": -3.188267, "lat": 55.944425 },
+                        "requirements": {
+                            "capacity": 5.0
+                        }
+                    }
+                ]
+                """;
+        mockMvc.perform(post("/api/v1/calcDeliveryPath")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void testCalcDeliveryPath_multipleDrones_returnsMultiplePaths() throws Exception {
+        String jsonRequest = """
+                [
+                    {
+                        "id": 1,
+                        "date": "2025-12-22",
+                        "time": "14:30",
+                        "delivery": { "lng": -3.188267, "lat": 55.944425 },
+                        "requirements": {
+                            "capacity": 5.0
+                        }
+                    },
+                    {
+                        "id": 2,
+                        "date": "2025-12-22",
+                        "time": "14:30",
+                        "delivery": { "lng": -3.186874, "lat": 55.943210 },
+                        "requirements": {
+                            "capacity": 3.0
+                        }
+                    }
+                ]
+                """;
+        mockMvc.perform(post("/api/v1/calcDeliveryPath")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void testCalcDeliveryPath_responseStructure_containsCostAndMoves() throws Exception {
+        String jsonRequest = """
+                [
+                    {
+                        "id": 1,
+                        "date": "2025-12-22",
+                        "time": "14:30",
+                        "delivery": { "lng": -3.188267, "lat": 55.944425 },
+                        "requirements": {
+                            "capacity": 5.0
+                        }
+                    }
+                ]
+                """;
+        MvcResult result = mockMvc.perform(post("/api/v1/calcDeliveryPath")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String responseContent = result.getResponse().getContentAsString();
+        JsonNode node = new ObjectMapper().readTree(responseContent);
+        assertTrue(node.has("totalCost"));
+        assertTrue(node.has("totalMoves"));
+        assertTrue(node.has("dronePaths"));
+    }
+
+    @Test
+    void testCalcDeliveryPathAsGeoJson_simpleCase_returnsValidGeoJson() throws Exception {
+        String jsonRequest = """
+                [
+                    {
+                        "id": 1,
+                        "date": "2025-12-22",
+                        "time": "14:30",
+                        "delivery": { "lng": -3.188267, "lat": 55.944425 },
+                        "requirements": {
+                            "capacity": 5.0
+                        }
+                    }
+                ]
+                """;
+        MvcResult result = mockMvc.perform(post("/api/v1/calcDeliveryPathAsGeoJson")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String responseContent = result.getResponse().getContentAsString();
+        JsonNode node = new ObjectMapper().readTree(responseContent);
+        assertTrue(node.has("type"));
+        assertTrue(node.has("coordinates"));
+    }
+
+    @Test
+    void testCalcDeliveryPath_extraFields_shouldIgnore() throws Exception {
+        String jsonRequest = """
+                [
+                    {
+                        "id": 1,
+                        "date": "2025-12-22",
+                        "time": "14:30",
+                        "delivery": { "lng": -3.188267, "lat": 55.944425 },
+                        "extraField": "should be ignored",
+                        "requirements": {
+                            "capacity": 5.0,
+                            "extraRequirement": "also ignored"
+                        }
+                    }
+                ]
+                """;
+        mockMvc.perform(post("/api/v1/calcDeliveryPath")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(status().isOk());
     }
 }
