@@ -43,8 +43,8 @@
 ## Evaluation
 
 **Strengths:**
-- Automated testing on every push/PR
-- Coverage breakdown by package posted to PR
+- Automated testing on every push/pull request
+- Coverage breakdown by package posted to summary
 - Docker build verifies containerisation
 
 **Limitations:**

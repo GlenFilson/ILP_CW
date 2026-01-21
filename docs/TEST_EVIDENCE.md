@@ -82,7 +82,7 @@ Applied to **V-01, V-02** to verify error handling.
 - `configuration` branch coverage (25%) — Spring configuration classes have conditional beans that aren't all exercised in tests
 - `service` missed branches (14%) — some edge cases in `PathfindingService` helper methods tested indirectly
 
-### 2.3 Coverage Adequacy
+### Coverage Adequacy
 
 The **90% overall instruction coverage** and **86% branch coverage** exceed typical industry targets (70-80%). Key observations:
 
@@ -110,7 +110,7 @@ The **90% overall instruction coverage** and **86% branch coverage** exceed typi
 | No container integration test | Docker tests are manual | Low — S-02 covered by health endpoint test |
 
 
-### 3.3 Statistical Evaluation
+### Statistical Evaluation
 
 **Test yield analysis:**
 - Unit tests: High yield — pure functions with predictable inputs/outputs
@@ -121,18 +121,4 @@ The **90% overall instruction coverage** and **86% branch coverage** exceed typi
 - BVA tests for `isCloseTo`: High — boundary errors are common in threshold comparisons
 - EP tests for `isInRegion`: High — geometric algorithms often fail on edge/vertex cases
 - Mock-based integration tests: Medium — may miss issues arising from real API response formats
-
-
-### 3.4 Risk Assessment
-
-| Component | Risk Level | Justification |
-|-----------|------------|---------------|
-| `isCloseTo` | Low | Exhaustive BVA at threshold boundary |
-| `isInRegion` | Low | EP covers all geometric partitions including concave shapes |
-| `queryAvailableDrones` | Medium | Many filter conditions; combinatorial explosion not fully tested |
-| `calcDeliveryPath` | Medium-High | Complex algorithm; path validity tested but not all edge cases |
-| External API integration | Medium | Mocked in tests; real API behaviour untested |
-
-
-
 
