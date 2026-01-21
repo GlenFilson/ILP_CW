@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: uk.ac.ed.acp.cw1.unit.PathfindingServiceTests
+-------------------------------------------------------------------------------
+Tests run: 42, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.043 s -- in uk.ac.ed.acp.cw1.unit.PathfindingServiceTests

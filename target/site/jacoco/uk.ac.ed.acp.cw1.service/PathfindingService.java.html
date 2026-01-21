@@ -1,0 +1,703 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PathfindingService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ILP_CW1</a> &gt; <a href="index.source.html" class="el_package">uk.ac.ed.acp.cw1.service</a> &gt; <span class="el_source">PathfindingService.java</span></div><h1>PathfindingService.java</h1><pre class="source lang-java linenums">package uk.ac.ed.acp.cw1.service;
+
+import org.springframework.stereotype.Service;
+import uk.ac.ed.acp.cw1.dto.*;
+
+import java.util.*;
+
+@Service
+public class PathfindingService {
+
+    private final DistanceService distanceService;
+    private final ExternalAPIService externalAPIService;
+    private final DroneService droneService;
+
+<span class="fc" id="L15">    public PathfindingService(DistanceService distanceService, ExternalAPIService externalAPIService, DroneService droneService) {</span>
+<span class="fc" id="L16">        this.distanceService = distanceService;</span>
+<span class="fc" id="L17">        this.externalAPIService = externalAPIService;</span>
+<span class="fc" id="L18">        this.droneService = droneService;</span>
+<span class="fc" id="L19">    }</span>
+<span class="fc" id="L20">    private static final double[] VALID_ANGLES = {</span>
+            0, 22.5, 45, 67.5, 90, 112.5, 135, 157.5,
+            180, 202.5, 225, 247.5, 270, 292.5, 315, 337.5
+    };
+
+    public CalcDeliveryPathResponse calcDeliveryPath(List&lt;MedDispatchRec&gt; dispatches){
+<span class="fc bfc" id="L26" title="All 4 branches covered.">       if (dispatches == null || dispatches.isEmpty()){</span>
+<span class="fc" id="L27">           return new CalcDeliveryPathResponse(0.0, 0, new ArrayList&lt;&gt;());</span>
+       }
+
+        //fetch all necessary data from external service
+<span class="fc" id="L31">        List&lt;Drone&gt; drones = externalAPIService.getAllDrones();</span>
+<span class="fc" id="L32">        List&lt;ServicePoint&gt; servicePoints = externalAPIService.getServicePoints();</span>
+<span class="fc" id="L33">        List&lt;DroneForServicePointResponse&gt; dronesForServicePoints = externalAPIService.getDronesForServicePoints();</span>
+<span class="fc" id="L34">        List&lt;RestrictedArea&gt; restrictedAreas = externalAPIService.getRestrictedAreas();</span>
+
+        // Step 1: Group dispatches by date (treat null as same date)
+<span class="fc" id="L37">        Map&lt;java.time.LocalDate, List&lt;MedDispatchRec&gt;&gt; dispatchesByDate = groupDispatchesByDate(dispatches);</span>
+
+        // Track results across all date groups
+<span class="fc" id="L40">        List&lt;DronePath&gt; allDronePaths = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L41">        double totalCost = 0;</span>
+<span class="fc" id="L42">        int totalMoves = 0;</span>
+
+        // Step 2: Process each date group
+<span class="fc bfc" id="L45" title="All 2 branches covered.">        for (Map.Entry&lt;java.time.LocalDate, List&lt;MedDispatchRec&gt;&gt; entry : dispatchesByDate.entrySet()) {</span>
+<span class="fc" id="L46">            java.time.LocalDate date = entry.getKey();</span>
+<span class="fc" id="L47">            List&lt;MedDispatchRec&gt; dateDispatches = entry.getValue();</span>
+
+            // Step 3: For this date, filter drones that are available
+<span class="fc" id="L50">            List&lt;Drone&gt; availableDrones = filterAvailableDrones(drones, date, dateDispatches, dronesForServicePoints);</span>
+
+
+            // Track which dispatches have been assigned for this date
+<span class="fc" id="L54">            Set&lt;Integer&gt; assignedDispatchIds = new HashSet&lt;&gt;();</span>
+
+            // Step 4: Apply pathfinding for each available drone
+<span class="fc bfc" id="L57" title="All 2 branches covered.">            for (Drone drone : availableDrones) {</span>
+<span class="fc bfc" id="L58" title="All 2 branches covered.">                if (assignedDispatchIds.size() == dateDispatches.size()) {</span>
+<span class="fc" id="L59">                    break; // All dispatches for this date are assigned</span>
+                }
+
+                // Get the service point for this drone
+<span class="fc" id="L63">                ServicePoint servicePoint = getServicePointForDrone(drone.getId(), dronesForServicePoints, servicePoints);</span>
+<span class="fc bfc" id="L64" title="All 2 branches covered.">                if (servicePoint == null) {</span>
+<span class="fc" id="L65">                    continue;</span>
+                }
+
+                // Find unassigned dispatches this drone can handle
+<span class="fc" id="L69">                List&lt;MedDispatchRec&gt; candidates = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L70" title="All 2 branches covered.">                for (MedDispatchRec dispatch : dateDispatches) {</span>
+<span class="fc bfc" id="L71" title="All 2 branches covered.">                    if (assignedDispatchIds.contains(dispatch.getId())) {</span>
+<span class="fc" id="L72">                        continue;</span>
+                    }
+
+                    // Check basic capability requirements
+<span class="fc bfc" id="L76" title="All 2 branches covered.">                    if (!canDeliverSingleDispatch(drone, dispatch)) {</span>
+<span class="fc" id="L77">                        continue;</span>
+                    }
+
+<span class="fc" id="L80">                    candidates.add(dispatch);</span>
+<span class="fc" id="L81">                }</span>
+
+<span class="fc bfc" id="L83" title="All 2 branches covered.">                if (candidates.isEmpty()) {</span>
+<span class="fc" id="L84">                    continue;</span>
+                }
+
+                // Build optimal multi-delivery route for this drone
+<span class="fc" id="L88">                List&lt;MedDispatchRec&gt; route = buildOptimalRoute(drone, servicePoint, candidates, restrictedAreas);</span>
+
+<span class="fc bfc" id="L90" title="All 2 branches covered.">                if (route.isEmpty()) {</span>
+<span class="fc" id="L91">                    continue;</span>
+                }
+
+                // Calculate the actual path for this route (expensive operation)
+<span class="fc" id="L95">                DronePath dronePath = calculatePath(drone, servicePoint, route, restrictedAreas);</span>
+
+                // Validate the path against all constraints
+<span class="fc" id="L98">                int pathMoves = countMoves(dronePath);</span>
+
+                // Check maxMoves constraint FIRST (cheaper than cost calculation)
+<span class="pc bpc" id="L101" title="1 of 2 branches missed.">                if (pathMoves &gt; drone.getCapability().getMaxMoves()) {</span>
+<span class="nc" id="L102">                    continue;</span>
+                }
+
+                // Only check cost if needed
+<span class="fc" id="L106">                boolean hasCostConstraint = route.stream()</span>
+<span class="fc bfc" id="L107" title="All 2 branches covered.">                        .anyMatch(d -&gt; d.getRequirements().getMaxCost() != null);</span>
+
+<span class="fc bfc" id="L109" title="All 2 branches covered.">                if (hasCostConstraint) {</span>
+<span class="fc" id="L110">                    double pathCost = drone.getCapability().getCostInitial()</span>
+<span class="fc" id="L111">                            + (pathMoves * drone.getCapability().getCostPerMove())</span>
+<span class="fc" id="L112">                            + drone.getCapability().getCostFinal();</span>
+
+<span class="fc" id="L114">                    double totalMaxCostAllowed = route.stream()</span>
+<span class="pc bpc" id="L115" title="1 of 2 branches missed.">                            .filter(d -&gt; d.getRequirements().getMaxCost() != null)</span>
+<span class="fc" id="L116">                            .mapToDouble(d -&gt; d.getRequirements().getMaxCost())</span>
+<span class="fc" id="L117">                            .sum();</span>
+
+<span class="fc bfc" id="L119" title="All 2 branches covered.">                    if (pathCost &gt; totalMaxCostAllowed) {</span>
+<span class="fc" id="L120">                        continue;</span>
+                    }
+
+<span class="fc" id="L123">                    totalCost += pathCost;</span>
+<span class="fc" id="L124">                } else {</span>
+                    // Calculate cost for response
+<span class="fc" id="L126">                    double pathCost = drone.getCapability().getCostInitial()</span>
+<span class="fc" id="L127">                            + (pathMoves * drone.getCapability().getCostPerMove())</span>
+<span class="fc" id="L128">                            + drone.getCapability().getCostFinal();</span>
+<span class="fc" id="L129">                    totalCost += pathCost;</span>
+                }
+
+                // Path is valid - add it to results
+<span class="fc" id="L133">                allDronePaths.add(dronePath);</span>
+<span class="fc" id="L134">                totalMoves += pathMoves;</span>
+
+                // Mark these dispatches as assigned
+<span class="fc" id="L137">                route.forEach(d -&gt; assignedDispatchIds.add(d.getId()));</span>
+<span class="fc" id="L138">            }</span>
+<span class="fc" id="L139">        }</span>
+
+<span class="fc" id="L141">        return new CalcDeliveryPathResponse(totalCost, totalMoves, allDronePaths);</span>
+    }
+
+    /**
+     * Groups dispatches by their date. Treats null dates as the same date.
+     */
+    private Map&lt;java.time.LocalDate, List&lt;MedDispatchRec&gt;&gt; groupDispatchesByDate(List&lt;MedDispatchRec&gt; dispatches) {
+<span class="fc" id="L148">        Map&lt;java.time.LocalDate, List&lt;MedDispatchRec&gt;&gt; grouped = new LinkedHashMap&lt;&gt;();</span>
+
+<span class="fc bfc" id="L150" title="All 2 branches covered.">        for (MedDispatchRec dispatch : dispatches) {</span>
+<span class="fc" id="L151">            java.time.LocalDate date = dispatch.getDate(); // null dates will be treated as same key</span>
+<span class="fc" id="L152">            grouped.computeIfAbsent(date, k -&gt; new ArrayList&lt;&gt;()).add(dispatch);</span>
+<span class="fc" id="L153">        }</span>
+
+<span class="fc" id="L155">        return grouped;</span>
+    }
+
+    /**
+     * Filters drones that are available for the given date and can deliver before the required times.
+     * A drone is available if it has availability on that day of week and its time window starts before
+     * the earliest dispatch time needed.
+     */
+    private List&lt;Drone&gt; filterAvailableDrones(List&lt;Drone&gt; allDrones,
+                                               java.time.LocalDate date,
+                                               List&lt;MedDispatchRec&gt; dateDispatches,
+                                               List&lt;DroneForServicePointResponse&gt; assignments) {
+<span class="fc" id="L167">        List&lt;Drone&gt; available = new ArrayList&lt;&gt;();</span>
+
+        // If date is null, all drones are potentially available
+<span class="fc bfc" id="L170" title="All 2 branches covered.">        if (date == null) {</span>
+<span class="fc" id="L171">            return new ArrayList&lt;&gt;(allDrones);</span>
+        }
+
+<span class="fc" id="L174">        java.time.DayOfWeek dayOfWeek = date.getDayOfWeek();</span>
+
+<span class="fc bfc" id="L176" title="All 2 branches covered.">        for (Drone drone : allDrones) {</span>
+<span class="fc bfc" id="L177" title="All 2 branches covered.">            if (isDroneAvailableForDateGroup(drone, dayOfWeek, dateDispatches, assignments)) {</span>
+<span class="fc" id="L178">                available.add(drone);</span>
+            }
+<span class="fc" id="L180">        }</span>
+
+<span class="fc" id="L182">        return available;</span>
+    }
+
+    /**
+     * Checks if a drone is available for a date group.
+     * The drone must have availability on the day of week and its availability window
+     * must start before all dispatch times in the group.
+     */
+    private boolean isDroneAvailableForDateGroup(Drone drone,
+                                                   java.time.DayOfWeek dayOfWeek,
+                                                   List&lt;MedDispatchRec&gt; dateDispatches,
+                                                   List&lt;DroneForServicePointResponse&gt; assignments) {
+        // Find this drone's availability schedule
+<span class="pc bpc" id="L195" title="1 of 2 branches missed.">        for (DroneForServicePointResponse assignment : assignments) {</span>
+<span class="fc bfc" id="L196" title="All 2 branches covered.">            for (DroneAvailability availability : assignment.getDrones()) {</span>
+<span class="fc bfc" id="L197" title="All 2 branches covered.">                if (availability.getId().equals(drone.getId())) {</span>
+                    // Check if drone has any availability slots for this day of week
+<span class="fc bfc" id="L199" title="All 2 branches covered.">                    for (Availability slot : availability.getAvailability()) {</span>
+<span class="fc bfc" id="L200" title="All 2 branches covered.">                        if (slot.getDayOfWeek() == dayOfWeek) {</span>
+                            // Drone has availability on this day
+                            // Check if it can deliver before all required times
+<span class="fc" id="L203">                            java.time.LocalTime droneAvailableFrom = slot.getFrom();</span>
+
+                            // Check if drone is available before all dispatch times
+<span class="fc" id="L206">                            boolean canDeliverAll = true;</span>
+<span class="fc bfc" id="L207" title="All 2 branches covered.">                            for (MedDispatchRec dispatch : dateDispatches) {</span>
+<span class="fc bfc" id="L208" title="All 2 branches covered.">                                if (dispatch.getTime() != null) {</span>
+                                    // Drone must be available before the dispatch time
+<span class="pc bpc" id="L210" title="1 of 2 branches missed.">                                    if (droneAvailableFrom.isAfter(dispatch.getTime())) {</span>
+<span class="nc" id="L211">                                        canDeliverAll = false;</span>
+<span class="nc" id="L212">                                        break;</span>
+                                    }
+                                }
+<span class="fc" id="L215">                            }</span>
+
+<span class="pc bpc" id="L217" title="1 of 2 branches missed.">                            if (canDeliverAll) {</span>
+<span class="fc" id="L218">                                return true; // This time slot works</span>
+                            }
+                        }
+<span class="fc" id="L221">                    }</span>
+<span class="fc" id="L222">                    return false; // Drone found but no suitable time slot</span>
+                }
+<span class="fc" id="L224">            }</span>
+<span class="fc" id="L225">        }</span>
+<span class="nc" id="L226">        return false; // Drone not found in assignments</span>
+    }
+
+    /**
+     * Counts the number of moves (transitions) in a drone's path.
+     * Each move is a transition between two consecutive positions.
+     * @param path
+     * @return
+     */
+    private int countMoves(DronePath path) {
+<span class="fc" id="L236">        int moves = 0;</span>
+<span class="fc bfc" id="L237" title="All 2 branches covered.">        for (Delivery delivery : path.getDeliveries()) {</span>
+<span class="fc" id="L238">            int positions = delivery.getFlightPath().size();</span>
+            // Moves = transitions between positions
+<span class="pc bpc" id="L240" title="1 of 2 branches missed.">            if (positions &gt; 0) {</span>
+<span class="fc" id="L241">                moves += positions - 1;</span>
+            }
+<span class="fc" id="L243">        }</span>
+<span class="fc" id="L244">        return moves;</span>
+    }
+
+    /**
+     *calculates flight path for a single drone visiting multiple deliveries
+     * @param drone
+     * @param sp
+     * @param dispatches
+     * @param restrictedAreas
+     * @return
+     */
+    private DronePath calculatePath(Drone drone, ServicePoint sp, List&lt;MedDispatchRec&gt; dispatches, List&lt;RestrictedArea&gt; restrictedAreas){
+<span class="fc" id="L256">        List&lt;Delivery&gt; deliveries = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L257">        Position current = sp.getLocation();</span>
+
+<span class="fc bfc" id="L259" title="All 2 branches covered.">        for (int i = 0; i &lt; dispatches.size(); i++) {</span>
+<span class="fc" id="L260">            MedDispatchRec dispatch = dispatches.get(i);</span>
+<span class="fc" id="L261">            List&lt;Position&gt; flightPath = calculateFlightPath(current, dispatch.getDelivery(), restrictedAreas);</span>
+
+            // Add TWO duplicate positions at the end to mark delivery being made
+<span class="fc" id="L264">            flightPath.add(dispatch.getDelivery());</span>
+<span class="fc" id="L265">            flightPath.add(dispatch.getDelivery());</span>
+
+<span class="fc" id="L267">            deliveries.add(new Delivery(dispatch.getId(), flightPath));</span>
+
+            // Next delivery starts at this delivery point
+<span class="fc" id="L270">            current = dispatch.getDelivery();</span>
+        }
+
+        // Calculate return path to service point as a separate delivery with null ID
+<span class="fc" id="L274">        List&lt;Position&gt; returnPath = calculateFlightPath(current, sp.getLocation(), restrictedAreas);</span>
+<span class="pc bpc" id="L275" title="1 of 2 branches missed.">        if (!returnPath.isEmpty()) {</span>
+            // Create separate Delivery object with deliveryId = null for return journey
+<span class="fc" id="L277">            deliveries.add(new Delivery(null, returnPath));</span>
+        }
+
+<span class="fc" id="L280">        return new DronePath(drone.getId(), deliveries);</span>
+    }
+
+    /**
+     * A* search that finds optimal path from start to end
+     * avoids restricted areas
+     * @param start
+     * @param end
+     * @param restrictedAreas
+     * @return
+     */
+    private List&lt;Position&gt; calculateFlightPath(Position start, Position end, List&lt;RestrictedArea&gt; restrictedAreas){
+        // Quick check: if no restricted areas, use simple greedy path
+<span class="fc bfc" id="L293" title="All 2 branches covered.">        if (restrictedAreas.isEmpty()) {</span>
+<span class="fc" id="L294">            return fallbackGreedyPath(start, end, restrictedAreas);</span>
+        }
+
+        // Try greedy path first - it's much faster
+<span class="fc" id="L298">        List&lt;Position&gt; greedyPath = fallbackGreedyPath(start, end, restrictedAreas);</span>
+<span class="pc bpc" id="L299" title="2 of 4 branches missed.">        if (!greedyPath.isEmpty() &amp;&amp; greedyPath.size() &lt; 10000) {</span>
+            // Greedy found a reasonable path, use it
+<span class="fc" id="L301">            return greedyPath;</span>
+        }
+
+        // Fall back to A* only if greedy fails
+        //queue to track nodes to be visited
+<span class="nc" id="L306">        PriorityQueue&lt;Node&gt; openSet = new PriorityQueue&lt;&gt;((a,b) -&gt; Double.compare(a.f, b.f));</span>
+        //visited nodes set
+<span class="nc" id="L308">        HashSet&lt;String&gt; closedSet = new HashSet&lt;&gt;();</span>
+        //all nodes, for updating when better path found
+<span class="nc" id="L310">        Map&lt;String, Node&gt; allNodes = new HashMap&lt;&gt;();</span>
+
+        //starting Node
+<span class="nc" id="L313">        Node startNode = new Node(start, null, 0, heuristic(start, end));</span>
+<span class="nc" id="L314">        openSet.add(startNode);</span>
+<span class="nc" id="L315">        allNodes.put(posKey(start), startNode);</span>
+
+        // Reduced iteration limit for faster performance
+<span class="nc" id="L318">        int maxIterations = 50000;</span>
+<span class="nc" id="L319">        int iterations = 0;</span>
+
+<span class="nc bnc" id="L321" title="All 4 branches missed.">        while(!openSet.isEmpty() &amp;&amp; iterations &lt; maxIterations){</span>
+<span class="nc" id="L322">            iterations++;</span>
+
+            //checks node with the lowest f(n)
+<span class="nc" id="L325">            Node current = openSet.poll();</span>
+            //check if we have reached the destination
+<span class="nc bnc" id="L327" title="All 2 branches missed.">            if(distanceService.isCloseTo(current.pos, end)){</span>
+<span class="nc" id="L328">                return reconstructPath(current);</span>
+            }
+            //mark the node as visited
+<span class="nc" id="L331">            String currentKey = posKey(current.pos);</span>
+<span class="nc" id="L332">            closedSet.add(currentKey);</span>
+
+            // explore all 16 compass directions from the current position
+<span class="nc bnc" id="L335" title="All 2 branches missed.">            for (double angle : VALID_ANGLES){</span>
+<span class="nc" id="L336">                Position neighbor = distanceService.nextPosition(current.pos, angle);</span>
+<span class="nc" id="L337">                String neighborKey = posKey(neighbor);</span>
+
+                // skip if the node is already visited, prevents loops
+<span class="nc bnc" id="L340" title="All 2 branches missed.">                if (closedSet.contains(neighborKey)){</span>
+<span class="nc" id="L341">                    continue;</span>
+                }
+
+                // check if the move would violate restricted area, either is inside it or path would cross through it
+<span class="nc bnc" id="L345" title="All 2 branches missed.">                if (isBlocked(current.pos, neighbor, restrictedAreas)){</span>
+<span class="nc" id="L346">                    continue;</span>
+                }
+
+                // calculate cost to move to neighbour
+<span class="nc" id="L350">                double moveCost = distanceService.euclideanDistance(current.pos, neighbor);</span>
+<span class="nc" id="L351">                double tentativeG = current.g + moveCost;</span>
+
+<span class="nc" id="L353">                Node neighborNode = allNodes.get(neighborKey);</span>
+
+                // either unvisited or there is better path
+<span class="nc bnc" id="L356" title="All 2 branches missed.">                if (neighborNode == null){</span>
+                    //unvisited node
+<span class="nc" id="L358">                    double h = heuristic(neighbor, end);</span>
+<span class="nc" id="L359">                    neighborNode = new Node(neighbor, current, tentativeG, h);</span>
+                    //add to sets
+<span class="nc" id="L361">                    allNodes.put(neighborKey, neighborNode);</span>
+<span class="nc" id="L362">                    openSet.add(neighborNode);</span>
+<span class="nc bnc" id="L363" title="All 2 branches missed.">                } else if (tentativeG &lt; neighborNode.g){</span>
+                    //cheaper path found
+<span class="nc" id="L365">                    neighborNode.parent = current;</span>
+<span class="nc" id="L366">                    neighborNode.g = tentativeG;</span>
+<span class="nc" id="L367">                    neighborNode.f = neighborNode.g + neighborNode.h;</span>
+
+                    // update the priority queue with new cost
+<span class="nc" id="L370">                    openSet.remove(neighborNode);</span>
+<span class="nc" id="L371">                    openSet.add(neighborNode);</span>
+                }
+            }
+<span class="nc" id="L374">        }</span>
+
+        // if A* dosent find path, fallback search
+<span class="nc" id="L377">        return fallbackGreedyPath(start, end, restrictedAreas);</span>
+    }
+
+    /**
+     * heuristic used in A*, euclidean distance to the goal
+     * is admissable as straight line distance never overestimates, is the optimal path
+     * @param current
+     * @param goal
+     * @return
+     */
+    private double heuristic(Position current, Position goal){
+<span class="nc" id="L388">        return distanceService.euclideanDistance(current, goal);</span>
+    }
+
+    /**
+     * reconstructs the path by following node parent pointer from the goal to the start
+     * @param node
+     * @return
+     */
+    private List&lt;Position&gt; reconstructPath(Node node){
+<span class="nc" id="L397">        List&lt;Position&gt; path = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L398">        Node current = node;</span>
+
+<span class="nc bnc" id="L400" title="All 2 branches missed.">        while (current != null){</span>
+<span class="nc" id="L401">            path.add(0, current.pos);</span>
+<span class="nc" id="L402">            current = current.parent;</span>
+        }
+
+<span class="nc" id="L405">        return path;</span>
+    }
+
+
+    private List&lt;Position&gt; fallbackGreedyPath(Position start, Position end, List&lt;RestrictedArea&gt; restrictedAreas){
+<span class="fc" id="L410">        List&lt;Position&gt; path = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L411">        Position current = start;</span>
+<span class="fc" id="L412">        path.add(current);</span>
+
+<span class="fc" id="L414">        int maxIterations = 10000; // Reduced for faster performance</span>
+
+<span class="pc bpc" id="L416" title="1 of 4 branches missed.">        while (!distanceService.isCloseTo(current, end) &amp;&amp; path.size() &lt; maxIterations){</span>
+<span class="fc" id="L417">            double bestAngle = findBestAngle(current, end, restrictedAreas);</span>
+<span class="fc" id="L418">            current = distanceService.nextPosition(current, bestAngle);</span>
+<span class="fc" id="L419">            path.add(current);</span>
+<span class="fc" id="L420">        }</span>
+
+<span class="fc" id="L422">        return path;</span>
+    }
+
+    /**
+     * converts a position into a string key allowing position to be used for hashmap key
+     * @param p
+     * @return
+     */
+    private String posKey(Position p){
+<span class="nc" id="L431">        return Math.round(p.getLat() * 1e4) + &quot;,&quot; + Math.round(p.getLng() * 1e4);</span>
+    }
+
+    /**
+     * picks compass direction that minimises distance to the goal
+     * used by the fallback search
+     * @param current
+     * @param target
+     * @param restrictedAreas
+     * @return
+     */
+    private double findBestAngle(Position current, Position target, List&lt;RestrictedArea&gt; restrictedAreas){
+<span class="fc" id="L443">        double bestAngle = 0;</span>
+<span class="fc" id="L444">        double minDistance = Double.MAX_VALUE;</span>
+
+<span class="fc bfc" id="L446" title="All 2 branches covered.">        for (double angle : VALID_ANGLES){</span>
+<span class="fc" id="L447">            Position nextPos = distanceService.nextPosition(current, angle);</span>
+
+<span class="fc bfc" id="L449" title="All 2 branches covered.">            if (isBlocked(current, nextPos, restrictedAreas)){</span>
+<span class="fc" id="L450">                continue;</span>
+            }
+
+<span class="fc" id="L453">            double distToTarget = distanceService.euclideanDistance(nextPos, target);</span>
+
+<span class="fc bfc" id="L455" title="All 2 branches covered.">            if (distToTarget &lt; minDistance){</span>
+<span class="fc" id="L456">                minDistance = distToTarget;</span>
+<span class="fc" id="L457">                bestAngle = angle;</span>
+            }
+        }
+
+<span class="fc" id="L461">        return bestAngle;</span>
+    }
+
+    /**
+     * checks if the move would violate any restricted areas
+     * is destination inside a restricted area?
+     * does the path from -&gt; to cross a restricted area
+     * @param from
+     * @param to
+     * @param restrictedAreas
+     * @return
+     */
+    private boolean isBlocked(Position from, Position to, List&lt;RestrictedArea&gt; restrictedAreas){
+<span class="fc bfc" id="L474" title="All 2 branches covered.">        for (RestrictedArea area : restrictedAreas){</span>
+<span class="fc" id="L475">            Region region = new Region(area.getName(), area.getVertices());</span>
+<span class="fc bfc" id="L476" title="All 2 branches covered.">            if (distanceService.isInRegion(to, region)){</span>
+<span class="fc" id="L477">                return true;</span>
+            }
+<span class="fc bfc" id="L479" title="All 2 branches covered.">            if (lineSegmentCrossesPolygon(from, to, area.getVertices())){</span>
+<span class="fc" id="L480">                return true;</span>
+            }
+<span class="fc" id="L482">        }</span>
+<span class="fc" id="L483">        return false;</span>
+    }
+
+    /**
+     * check if a line crosses any edge of the polygon
+     * @param p1
+     * @param p2
+     * @param polygon
+     * @return
+     */
+    private boolean lineSegmentCrossesPolygon(Position p1, Position p2, List&lt;Position&gt; polygon){
+<span class="fc bfc" id="L494" title="All 2 branches covered.">        for (int i = 0; i &lt; polygon.size() - 1; i++){</span>
+<span class="fc" id="L495">            Position v1 = polygon.get(i);</span>
+<span class="fc" id="L496">            Position v2 = polygon.get(i + 1);</span>
+
+<span class="fc bfc" id="L498" title="All 2 branches covered.">            if (segmentsIntersect(p1, p2, v1, v2)){</span>
+<span class="fc" id="L499">                return true;</span>
+            }
+        }
+<span class="fc" id="L502">        return false;</span>
+    }
+
+    private boolean segmentsIntersect(Position a, Position b, Position c, Position d){
+<span class="fc bfc" id="L506" title="All 4 branches covered.">        return ccw(a, c, d) != ccw(b, c, d) &amp;&amp; ccw(a, b, c) != ccw(a, b, d);</span>
+    }
+
+    /**
+     * counter clockwise orientation test
+     *
+     * @param a
+     * @param b
+     * @param c
+     * @return
+     */
+    private boolean ccw(Position a, Position b, Position c){
+<span class="fc" id="L518">        return (c.getLng() - a.getLng()) * (b.getLat() - a.getLat()) &gt;</span>
+<span class="fc bfc" id="L519" title="All 2 branches covered.">                (b.getLng() - a.getLng()) * (c.getLat() - a.getLat());</span>
+    }
+
+    /**
+     * checks if a drone can deliver a singular dispatch
+     * @param drone
+     * @param dispatch
+     * @return
+     */
+    private boolean canDeliverSingleDispatch(Drone drone, MedDispatchRec dispatch){
+<span class="fc" id="L529">        Drone.Capability cap = drone.getCapability();</span>
+<span class="fc" id="L530">        MedDispatchRec.Requirements req = dispatch.getRequirements();</span>
+
+<span class="fc bfc" id="L532" title="All 2 branches covered.">        if (cap.getCapacity() &lt; req.getCapacity()){</span>
+<span class="fc" id="L533">            return false;</span>
+        }
+
+<span class="fc bfc" id="L536" title="All 4 branches covered.">        if (req.isCooling() &amp;&amp; !cap.isCooling()){</span>
+<span class="fc" id="L537">            return false;</span>
+        }
+
+<span class="fc bfc" id="L540" title="All 4 branches covered.">        if (req.isHeating() &amp;&amp; !cap.isHeating()){</span>
+<span class="fc" id="L541">            return false;</span>
+        }
+
+<span class="fc" id="L544">        return true;</span>
+    }
+
+    /**
+     * Find the service point assigned to a specific drone
+     * @param droneId The drone ID to look up
+     * @param assignments The drone-to-service-point assignments
+     * @param servicePoints All available service points
+     * @return The service point for this drone, or null if not found
+     */
+    private ServicePoint getServicePointForDrone(String droneId,
+                                                  List&lt;DroneForServicePointResponse&gt; assignments,
+                                                  List&lt;ServicePoint&gt; servicePoints) {
+<span class="pc bpc" id="L557" title="1 of 2 branches missed.">        for (DroneForServicePointResponse assignment : assignments) {</span>
+<span class="pc bpc" id="L558" title="1 of 2 branches missed.">            for (DroneAvailability availability : assignment.getDrones()) {</span>
+<span class="fc bfc" id="L559" title="All 2 branches covered.">                if (availability.getId().equals(droneId)) {</span>
+<span class="fc" id="L560">                    Integer servicePointId = assignment.getServicePointId();</span>
+<span class="fc" id="L561">                    return servicePoints.stream()</span>
+<span class="fc" id="L562">                            .filter(sp -&gt; sp.getId().equals(servicePointId))</span>
+<span class="fc" id="L563">                            .findFirst()</span>
+<span class="fc" id="L564">                            .orElse(null);</span>
+                }
+<span class="fc" id="L566">            }</span>
+<span class="nc" id="L567">        }</span>
+<span class="nc" id="L568">        return null;</span>
+    }
+
+
+
+    private List&lt;MedDispatchRec&gt; buildOptimalRoute(Drone drone,
+                                                     ServicePoint servicePoint,
+                                                     List&lt;MedDispatchRec&gt; candidates,
+                                                     List&lt;RestrictedArea&gt; restrictedAreas) {
+<span class="fc" id="L577">        List&lt;MedDispatchRec&gt; route = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L578">        Set&lt;Integer&gt; used = new HashSet&lt;&gt;();</span>
+<span class="fc" id="L579">        Position current = servicePoint.getLocation();</span>
+<span class="fc" id="L580">        double accumulatedCapacity = 0;</span>
+<span class="fc" id="L581">        int estimatedMoves = 0;</span>
+
+        // Performance optimization: limit multi-delivery attempts
+        // Try single delivery first (fastest), then attempt multi-delivery
+<span class="fc" id="L585">        int maxDeliveriesPerDrone = Math.min(3, candidates.size()); // Limit to 3 deliveries max</span>
+
+        // Greedy nearest-neighbor selection
+<span class="pc bpc" id="L588" title="1 of 4 branches missed.">        while (route.size() &lt; maxDeliveriesPerDrone &amp;&amp; route.size() &lt; candidates.size()) {</span>
+<span class="fc" id="L589">            MedDispatchRec nearest = null;</span>
+<span class="fc" id="L590">            double minDistance = Double.MAX_VALUE;</span>
+
+<span class="fc bfc" id="L592" title="All 2 branches covered.">            for (MedDispatchRec candidate : candidates) {</span>
+<span class="fc bfc" id="L593" title="All 2 branches covered.">                if (used.contains(candidate.getId())) {</span>
+<span class="fc" id="L594">                    continue;</span>
+                }
+
+                // Check capacity constraint FIRST (cheap check)
+<span class="fc" id="L598">                double newCapacity = accumulatedCapacity + candidate.getRequirements().getCapacity();</span>
+<span class="pc bpc" id="L599" title="1 of 2 branches missed.">                if (newCapacity &gt; drone.getCapability().getCapacity()) {</span>
+<span class="nc" id="L600">                    continue; // Would exceed drone capacity</span>
+                }
+
+                // Estimate distance (Euclidean as lower bound)
+<span class="fc" id="L604">                double distance = distanceService.euclideanDistance(current, candidate.getDelivery());</span>
+
+                // Early check: would this exceed move budget?
+<span class="fc" id="L607">                double estMovesToTarget = distance / 0.00015;</span>
+<span class="fc" id="L608">                double estReturnMoves = distanceService.euclideanDistance(candidate.getDelivery(), servicePoint.getLocation()) / 0.00015;</span>
+
+<span class="fc bfc" id="L610" title="All 2 branches covered.">                if (estimatedMoves + estMovesToTarget + estReturnMoves &gt; drone.getCapability().getMaxMoves() * 0.9) {</span>
+                    // Would likely exceed moves, skip
+<span class="fc" id="L612">                    continue;</span>
+                }
+
+<span class="fc bfc" id="L615" title="All 2 branches covered.">                if (distance &lt; minDistance) {</span>
+<span class="fc" id="L616">                    minDistance = distance;</span>
+<span class="fc" id="L617">                    nearest = candidate;</span>
+                }
+<span class="fc" id="L619">            }</span>
+
+<span class="fc bfc" id="L621" title="All 2 branches covered.">            if (nearest == null) {</span>
+<span class="fc" id="L622">                break; // Can't add more deliveries</span>
+            }
+
+            // Estimate moves BEFORE adding (early rejection)
+<span class="fc" id="L626">            double distMoves = minDistance / 0.00015;</span>
+<span class="fc" id="L627">            double returnDistance = distanceService.euclideanDistance(nearest.getDelivery(), servicePoint.getLocation());</span>
+<span class="fc" id="L628">            double returnMoves = returnDistance / 0.00015;</span>
+
+<span class="pc bpc" id="L630" title="1 of 2 branches missed.">            if (estimatedMoves + distMoves + returnMoves &gt; drone.getCapability().getMaxMoves()) {</span>
+                // Would exceed budget, stop here
+<span class="nc" id="L632">                break;</span>
+            }
+
+            // Add to route
+<span class="fc" id="L636">            route.add(nearest);</span>
+<span class="fc" id="L637">            used.add(nearest.getId());</span>
+<span class="fc" id="L638">            accumulatedCapacity += nearest.getRequirements().getCapacity();</span>
+<span class="fc" id="L639">            estimatedMoves += (int) distMoves;</span>
+<span class="fc" id="L640">            current = nearest.getDelivery();</span>
+<span class="fc" id="L641">        }</span>
+
+<span class="fc" id="L643">        return route;</span>
+    }
+
+    /**
+     * converts calculated delivery path to GeoJSON
+     * @param dispatches
+     * @return
+     */
+    public String calcDeliveryPathAsGeoJson(List&lt;MedDispatchRec&gt; dispatches) {
+<span class="fc" id="L652">        CalcDeliveryPathResponse response = calcDeliveryPath(dispatches);</span>
+
+<span class="fc" id="L654">        List&lt;List&lt;Double&gt;&gt; coordinates = new ArrayList&lt;&gt;();</span>
+
+<span class="fc bfc" id="L656" title="All 2 branches covered.">        for (DronePath dronePath : response.getDronePaths()) {</span>
+<span class="fc bfc" id="L657" title="All 2 branches covered.">            for (Delivery delivery : dronePath.getDeliveries()) {</span>
+<span class="fc bfc" id="L658" title="All 2 branches covered.">                for (Position pos : delivery.getFlightPath()) {</span>
+<span class="fc" id="L659">                    List&lt;Double&gt; coord = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L660">                    coord.add(pos.getLng());  // GeoJSON: [lng, lat]</span>
+<span class="fc" id="L661">                    coord.add(pos.getLat());</span>
+<span class="fc" id="L662">                    coordinates.add(coord);</span>
+<span class="fc" id="L663">                }</span>
+<span class="fc" id="L664">            }</span>
+<span class="fc" id="L665">        }</span>
+
+<span class="fc" id="L667">        Map&lt;String, Object&gt; geoJson = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L668">        geoJson.put(&quot;type&quot;, &quot;LineString&quot;);</span>
+<span class="fc" id="L669">        geoJson.put(&quot;coordinates&quot;, coordinates);</span>
+
+        try {
+<span class="fc" id="L672">            return new com.fasterxml.jackson.databind.ObjectMapper()</span>
+<span class="fc" id="L673">                    .writeValueAsString(geoJson);</span>
+<span class="nc" id="L674">        } catch (Exception e) {</span>
+<span class="nc" id="L675">            return &quot;{\&quot;type\&quot;: \&quot;LineString\&quot;,\&quot;coordinates\&quot;: []}&quot;;</span>
+        }
+    }
+
+
+    /**
+     * Node class used for A* search
+     * represents a position in the graph
+     */
+    private static class Node {
+        Position pos; //the position of this node object with lat, lng
+        Node parent; //the previous node in the path
+        double g;  //distance from start to this node
+        double h;  //estimated distance from the node to the goal - uses euclidean distance
+        double f;  // g+h
+
+<span class="nc" id="L691">        Node(Position pos, Node parent, double g, double h){</span>
+<span class="nc" id="L692">            this.pos = pos;</span>
+<span class="nc" id="L693">            this.parent = parent;</span>
+<span class="nc" id="L694">            this.g = g;</span>
+<span class="nc" id="L695">            this.h = h;</span>
+<span class="nc" id="L696">            this.f = g + h;</span>
+<span class="nc" id="L697">        }</span>
+    }
+
+}
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

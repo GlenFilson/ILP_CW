@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DistanceService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ILP_CW1</a> &gt; <a href="index.source.html" class="el_package">uk.ac.ed.acp.cw1.service</a> &gt; <span class="el_source">DistanceService.java</span></div><h1>DistanceService.java</h1><pre class="source lang-java linenums">package uk.ac.ed.acp.cw1.service;
+
+import org.springframework.stereotype.Service;
+import uk.ac.ed.acp.cw1.dto.Position;
+import uk.ac.ed.acp.cw1.dto.Region;
+
+import java.util.List;
+
+@Service
+<span class="fc" id="L10">public class DistanceService {</span>
+    //the distance for a point to be considered close
+<span class="fc" id="L12">    private final double CLOSE_THRESHOLD = 0.00015;</span>
+
+    //step size to move 
+<span class="fc" id="L15">    private final double MOVE_DISTANCE = 0.00015;</span>
+
+    /**
+     * calculates the distance between 2 points using the Euclidean distance formula
+     * @param position1 the first point
+     * @param position2 the second point
+     * @return the distance between the points
+     */
+    public Double euclideanDistance(Position position1, Position position2){
+<span class="fc" id="L24">        double lat1 = position1.getLat();</span>
+<span class="fc" id="L25">        double lng1 = position1.getLng();</span>
+
+<span class="fc" id="L27">        double lat2 = position2.getLat();</span>
+<span class="fc" id="L28">        double lng2 = position2.getLng();</span>
+
+        //sqrt((x2-x1)^2 + (y2-y1))^2)
+<span class="fc" id="L31">        return Math.sqrt(Math.pow(lat2-lat1, 2) + Math.pow(lng2-lng1, 2));</span>
+    }
+
+    public Boolean isCloseTo(Position position1, Position position2){
+<span class="fc" id="L35">        double distance = euclideanDistance(position1, position2);</span>
+<span class="fc bfc" id="L36" title="All 2 branches covered.">        return distance &lt; CLOSE_THRESHOLD;</span>
+    }
+
+
+    /**
+     * relies on the STEP_SIZE to determine what distance exactly the next position should be
+     * @param position the starting position
+     * @param angle the angle in which the nextPosition should head
+     * @return the next position, essentially moving the drone
+     */
+    public Position nextPosition(Position position, Double angle){
+<span class="fc" id="L47">        double lat = position.getLat();</span>
+<span class="fc" id="L48">        double lng = position.getLng();</span>
+
+<span class="fc" id="L50">        double radians = Math.toRadians(angle);</span>
+<span class="fc" id="L51">        double deltaLat = MOVE_DISTANCE * Math.sin(radians);</span>
+<span class="fc" id="L52">        double deltaLng = MOVE_DISTANCE * Math.cos(radians);</span>
+
+<span class="fc" id="L54">        return new Position(lat+deltaLat, lng+deltaLng);</span>
+    }
+
+    /**
+     * @param position the point to check
+     * @param region a list of positions/points that form a polygon
+     * @return whether the position is inside the polygon created by the list of positions/points, the region
+     */
+    public Boolean isInRegion(Position position, Region region){
+<span class="fc" id="L63">        int n = region.getVertices().size();//number of vertices, point</span>
+<span class="fc" id="L64">        int intersections = 0;</span>
+<span class="fc" id="L65">        List&lt;Position&gt; vertices = region.getVertices();</span>
+        //x point, y point - points of the target position
+<span class="fc" id="L67">        double xp  = position.getLat();</span>
+<span class="fc" id="L68">        double yp = position.getLng();;</span>
+
+
+<span class="fc bfc" id="L71" title="All 2 branches covered.">        for (int i = 0, j = n - 1; i &lt; n; j = i++){</span>
+<span class="fc" id="L72">            double x1 = vertices.get(i).getLat();</span>
+<span class="fc" id="L73">            double y1 = vertices.get(i).getLng();</span>
+
+<span class="fc" id="L75">            double x2 = vertices.get(j).getLat();</span>
+<span class="fc" id="L76">            double y2 = vertices.get(j).getLng();</span>
+
+
+            /**
+             * check if point is strictly on the edge of the polygon
+             * checks if the gradient between the point and one vertex1 is the same as the gradient between the point and vertex2
+             * if the gradients are the same and the point lies between the vertices points, it is on the edge, its on the line formed between the vertices
+             */
+<span class="fc bfc" id="L84" title="All 2 branches covered.">            if ((y2 - y1) * (xp - x1) == (x2 - x1) * (yp - y1)) {</span>
+<span class="fc bfc" id="L85" title="All 4 branches covered.">                if (xp &gt;= Math.min(x1, x2) &amp;&amp; xp &lt;= Math.max(x1, x2) &amp;&amp;</span>
+<span class="fc bfc" id="L86" title="All 4 branches covered.">                        yp &gt;= Math.min(y1, y2) &amp;&amp; yp &lt;= Math.max(y1, y2)) {</span>
+<span class="fc" id="L87">                    return true; //if on edge, we consider it inRegion so return</span>
+                }
+            }
+
+            //if the points y coord is not above both or below both points, aka the points y coord is between the points y coords
+            //does the ray cross the points in the y coords
+<span class="fc bfc" id="L93" title="All 6 branches covered.">            if ((y1 &gt; yp) != (y2 &gt; yp)) {</span>
+                //if crosses y coords then there is a possibility the ray also crosses x coords
+                //find the x intersect
+                //x = m*y + c
+<span class="fc" id="L97">                double xIntersection = (x2 - x1) / (y2 - y1) * (yp - y1) + x1;</span>
+<span class="fc bfc" id="L98" title="All 2 branches covered.">                if (xp &lt; xIntersection) {</span>
+<span class="fc" id="L99">                    intersections++;</span>
+                }
+            }
+        }
+        //if there are an odd number of intersections then the point is within the region
+<span class="fc bfc" id="L104" title="All 2 branches covered.">        return (intersections % 2 == 1);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

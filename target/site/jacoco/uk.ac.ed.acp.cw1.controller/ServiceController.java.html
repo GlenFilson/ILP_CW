@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ServiceController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ILP_CW1</a> &gt; <a href="index.source.html" class="el_package">uk.ac.ed.acp.cw1.controller</a> &gt; <span class="el_source">ServiceController.java</span></div><h1>ServiceController.java</h1><pre class="source lang-java linenums">package uk.ac.ed.acp.cw1.controller;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.*;
+import uk.ac.ed.acp.cw1.dto.*;
+import uk.ac.ed.acp.cw1.dto.Position;
+import uk.ac.ed.acp.cw1.dto.Region;
+import uk.ac.ed.acp.cw1.service.DistanceService;
+import uk.ac.ed.acp.cw1.service.DroneService;
+import uk.ac.ed.acp.cw1.service.ExternalAPIService;
+import uk.ac.ed.acp.cw1.service.PathfindingService;
+
+import java.net.URL;
+import java.util.*;
+
+/**
+ * Controller class that handles various HTTP endpoints for the application.
+ * Provides functionality for serving the index page, retrieving a static UUID,
+ * and managing key-value pairs through POST requests.
+ */
+@RestController()
+@RequestMapping(&quot;/api/v1&quot;)
+public class ServiceController {
+<span class="fc" id="L33">    private static final Logger logger = LoggerFactory.getLogger(ServiceController.class);</span>
+    //service injection
+    private final DistanceService distanceService;
+    private final DroneService droneService;
+    private final ExternalAPIService externalAPIService;
+    private final PathfindingService pathfindingService;
+
+<span class="fc" id="L40">    public ServiceController(DistanceService distanceService, DroneService droneService, ExternalAPIService externalAPIService, PathfindingService pathfindingService) {</span>
+<span class="fc" id="L41">        this.distanceService = distanceService;</span>
+<span class="fc" id="L42">        this.droneService = droneService;</span>
+<span class="fc" id="L43">        this.externalAPIService = externalAPIService;</span>
+<span class="fc" id="L44">        this.pathfindingService = pathfindingService;</span>
+<span class="fc" id="L45">    }</span>
+    @Value(&quot;${ilp.service.url}&quot;)
+    public URL serviceUrl;
+
+    @GetMapping(&quot;/&quot;)
+    public String index() {
+<span class="nc" id="L51">        return &quot;&lt;html&gt;&lt;body&gt;&quot; +</span>
+                &quot;&lt;h1&gt;Welcome from ILP&lt;/h1&gt;&quot; +
+                &quot;&lt;h4&gt;ILP-REST-Service-URL:&lt;/h4&gt; &lt;a href=\&quot;&quot; + serviceUrl + &quot;\&quot; target=\&quot;_blank\&quot;&gt; &quot; + serviceUrl+ &quot; &lt;/a&gt;&quot; +
+                &quot;&lt;/body&gt;&lt;/html&gt;&quot;;
+    }
+
+    @GetMapping(&quot;/uid&quot;)
+    public String uid() {
+<span class="fc" id="L59">        return &quot;s2539057&quot;;</span>
+    }
+
+
+    @PostMapping(&quot;/distanceTo&quot;)
+    public ResponseEntity&lt;?&gt; distanceTo(@RequestBody @Valid DistanceToRequest request){
+
+<span class="fc" id="L66">        Position position1 = request.getPosition1();</span>
+<span class="fc" id="L67">        Position position2 = request.getPosition2();</span>
+<span class="fc" id="L68">        Double distance = distanceService.euclideanDistance(position1, position2);</span>
+
+<span class="fc" id="L70">        return ResponseEntity.ok(distance);</span>
+    }
+
+    @PostMapping(&quot;/isCloseTo&quot;)
+    public ResponseEntity&lt;?&gt; isCloseTo(@RequestBody @Valid IsCloseToRequest request){
+
+<span class="fc" id="L76">        Position position1 = request.getPosition1();</span>
+<span class="fc" id="L77">        Position position2 = request.getPosition2();</span>
+
+<span class="fc" id="L79">        return ResponseEntity.ok(distanceService.isCloseTo(position1, position2));</span>
+    }
+
+    @PostMapping(&quot;/nextPosition&quot;)
+    public ResponseEntity&lt;?&gt; nextPosition(@RequestBody @Valid NextPositionRequest request){
+
+<span class="fc" id="L85">        Position position = request.getStart();</span>
+<span class="fc" id="L86">        Double angle = request.getAngle();</span>
+<span class="fc" id="L87">        Position nextPosition = distanceService.nextPosition(position, angle);</span>
+
+<span class="fc" id="L89">        return ResponseEntity.ok(new NextPositionResponse(nextPosition.getLat(),  nextPosition.getLng()));</span>
+    }
+
+    @PostMapping(&quot;/isInRegion&quot;)
+    public ResponseEntity&lt;?&gt; isInRegion(@RequestBody @Valid IsInRegionRequest request){
+
+<span class="fc" id="L95">        Region region = request.getRegion();</span>
+
+<span class="fc" id="L97">        return ResponseEntity.ok(distanceService.isInRegion(request.getPosition(), region));</span>
+    }
+
+
+    @GetMapping(&quot;dronesWithCooling/{state}&quot;)
+    public ResponseEntity&lt;List&lt;String&gt;&gt; dronesWithCooling(@PathVariable boolean state){
+<span class="fc" id="L103">        return ResponseEntity.ok(droneService.getDronesWithCooling(state));</span>
+    }
+
+    @GetMapping(&quot;droneDetails/{id}&quot;)
+    public ResponseEntity&lt;?&gt; droneDetails(@PathVariable String id){
+<span class="fc" id="L108">        Drone drone = droneService.getDroneById(id);</span>
+<span class="fc bfc" id="L109" title="All 2 branches covered.">        if (drone == null){</span>
+<span class="fc" id="L110">            return ResponseEntity.notFound().build();</span>
+        }
+<span class="fc" id="L112">        return ResponseEntity.ok(drone);</span>
+    }
+
+    @GetMapping(&quot;/queryAsPath/{attributeName}/{attributeValue}&quot;)
+    public ResponseEntity&lt;List&lt;String&gt;&gt; queryAsPath(@PathVariable String attributeName,
+                                                    @PathVariable String attributeValue){
+<span class="fc" id="L118">        return ResponseEntity.ok(droneService.queryAsPath(attributeName, attributeValue));</span>
+    }
+
+    @PostMapping(&quot;/query&quot;)
+    public ResponseEntity&lt;List&lt;String&gt;&gt; query(@RequestBody List&lt;QueryAttribute&gt; attributes) {
+<span class="fc" id="L123">        return ResponseEntity.ok(droneService.query(attributes));</span>
+    }
+
+    @PostMapping(&quot;/queryAvailableDrones&quot;)
+    public ResponseEntity&lt;List&lt;String&gt;&gt; queryAvailableDrones(@RequestBody List&lt;MedDispatchRec&gt; dispatches) {
+<span class="fc" id="L128">        return ResponseEntity.ok(droneService.queryAvailableDrones(dispatches));</span>
+    }
+
+
+    @PostMapping(&quot;/calcDeliveryPath&quot;)
+    public ResponseEntity&lt;?&gt; calcDeliveryPath(@RequestBody List&lt;MedDispatchRec&gt; dispatches){
+<span class="fc" id="L134">        return ResponseEntity.ok(pathfindingService.calcDeliveryPath(dispatches));</span>
+    }
+
+    @PostMapping(&quot;/calcDeliveryPathAsGeoJson&quot;)
+    public ResponseEntity&lt;?&gt; calcDeliveryPathAsGeoJson(@RequestBody List&lt;MedDispatchRec&gt; dispatches){
+<span class="fc" id="L139">        return ResponseEntity.ok(pathfindingService.calcDeliveryPathAsGeoJson(dispatches));</span>
+    }
+
+    //TODO: remove this helper function
+    /**
+     * helper used to display the restricted areas as well as calculated delivery route as GeoJson
+     * @param dispatches
+     * @return
+     * @throws Exception
+     */
+    @PostMapping(&quot;/testPathWithObstacles&quot;)
+    public ResponseEntity&lt;String&gt; testPathWithObstacles(
+            @RequestBody List&lt;MedDispatchRec&gt; dispatches) throws Exception {
+
+        // Get flight path
+<span class="fc" id="L154">        String flightPathGeoJson = pathfindingService.calcDeliveryPathAsGeoJson(dispatches);</span>
+<span class="fc" id="L155">        List&lt;RestrictedArea&gt; restrictedAreas = externalAPIService.getRestrictedAreas();</span>
+
+        // Parse flight path
+<span class="fc" id="L158">        ObjectMapper mapper = new ObjectMapper();</span>
+<span class="fc" id="L159">        Map&lt;String, Object&gt; flightPathData = mapper.readValue(flightPathGeoJson, Map.class);</span>
+<span class="fc" id="L160">        List&lt;List&lt;Double&gt;&gt; flightCoordinates = (List&lt;List&lt;Double&gt;&gt;) flightPathData.get(&quot;coordinates&quot;);</span>
+
+        // Build FeatureCollection
+<span class="fc" id="L163">        List&lt;Map&lt;String, Object&gt;&gt; features = new ArrayList&lt;&gt;();</span>
+
+        // 1. Add flight path as blue LineString
+<span class="fc" id="L166">        Map&lt;String, Object&gt; flightFeature = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L167">        flightFeature.put(&quot;type&quot;, &quot;Feature&quot;);</span>
+
+<span class="fc" id="L169">        Map&lt;String, Object&gt; flightGeometry = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L170">        flightGeometry.put(&quot;type&quot;, &quot;LineString&quot;);</span>
+<span class="fc" id="L171">        flightGeometry.put(&quot;coordinates&quot;, flightCoordinates);</span>
+<span class="fc" id="L172">        flightFeature.put(&quot;geometry&quot;, flightGeometry);</span>
+
+<span class="fc" id="L174">        Map&lt;String, Object&gt; flightProps = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L175">        flightProps.put(&quot;name&quot;, &quot;Flight Path&quot;);</span>
+<span class="fc" id="L176">        flightProps.put(&quot;stroke&quot;, &quot;#0000FF&quot;);  // Blue</span>
+<span class="fc" id="L177">        flightProps.put(&quot;stroke-width&quot;, 3);</span>
+<span class="fc" id="L178">        flightProps.put(&quot;stroke-opacity&quot;, 1);</span>
+<span class="fc" id="L179">        flightFeature.put(&quot;properties&quot;, flightProps);</span>
+
+<span class="fc" id="L181">        features.add(flightFeature);</span>
+
+        // 2. Add restricted areas as red Polygons
+<span class="fc bfc" id="L184" title="All 2 branches covered.">        for (RestrictedArea area : restrictedAreas) {</span>
+<span class="fc" id="L185">            Map&lt;String, Object&gt; areaFeature = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L186">            areaFeature.put(&quot;type&quot;, &quot;Feature&quot;);</span>
+
+            // Convert vertices to GeoJSON polygon coordinates
+<span class="fc" id="L189">            List&lt;List&lt;List&lt;Double&gt;&gt;&gt; polygonCoords = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L190">            List&lt;List&lt;Double&gt;&gt; ring = new ArrayList&lt;&gt;();</span>
+
+<span class="fc bfc" id="L192" title="All 2 branches covered.">            for (Position vertex : area.getVertices()) {</span>
+<span class="fc" id="L193">                List&lt;Double&gt; coord = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L194">                coord.add(vertex.getLng());</span>
+<span class="fc" id="L195">                coord.add(vertex.getLat());</span>
+<span class="fc" id="L196">                ring.add(coord);</span>
+<span class="fc" id="L197">            }</span>
+
+            // Close polygon (first point = last point)
+<span class="pc bpc" id="L200" title="1 of 4 branches missed.">            if (!ring.isEmpty() &amp;&amp; !ring.get(0).equals(ring.get(ring.size() - 1))) {</span>
+<span class="fc" id="L201">                ring.add(ring.get(0));</span>
+            }
+
+<span class="fc" id="L204">            polygonCoords.add(ring);</span>
+
+<span class="fc" id="L206">            Map&lt;String, Object&gt; areaGeometry = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L207">            areaGeometry.put(&quot;type&quot;, &quot;Polygon&quot;);</span>
+<span class="fc" id="L208">            areaGeometry.put(&quot;coordinates&quot;, polygonCoords);</span>
+<span class="fc" id="L209">            areaFeature.put(&quot;geometry&quot;, areaGeometry);</span>
+
+<span class="fc" id="L211">            Map&lt;String, Object&gt; areaProps = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L212">            areaProps.put(&quot;name&quot;, area.getName());</span>
+<span class="fc" id="L213">            areaProps.put(&quot;fill&quot;, &quot;#FF0000&quot;);  // Red fill</span>
+<span class="fc" id="L214">            areaProps.put(&quot;fill-opacity&quot;, 0.3);</span>
+<span class="fc" id="L215">            areaProps.put(&quot;stroke&quot;, &quot;#FF0000&quot;);  // Red border</span>
+<span class="fc" id="L216">            areaProps.put(&quot;stroke-width&quot;, 2);</span>
+<span class="fc" id="L217">            areaFeature.put(&quot;properties&quot;, areaProps);</span>
+
+<span class="fc" id="L219">            features.add(areaFeature);</span>
+<span class="fc" id="L220">        }</span>
+
+<span class="fc" id="L222">        Map&lt;String, Object&gt; featureCollection = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L223">        featureCollection.put(&quot;type&quot;, &quot;FeatureCollection&quot;);</span>
+<span class="fc" id="L224">        featureCollection.put(&quot;features&quot;, features);</span>
+
+<span class="fc" id="L226">        String result = mapper.writerWithDefaultPrettyPrinter()</span>
+<span class="fc" id="L227">                .writeValueAsString(featureCollection);</span>
+
+<span class="fc" id="L229">        return ResponseEntity.ok()</span>
+<span class="fc" id="L230">                .contentType(MediaType.APPLICATION_JSON)</span>
+<span class="fc" id="L231">                .body(result);</span>
+    }
+
+    @GetMapping(&quot;/restrictedAreas&quot;)
+    public ResponseEntity&lt;List&lt;RestrictedArea&gt;&gt; getRestrictedAreas(){
+<span class="fc" id="L236">        return ResponseEntity.ok(externalAPIService.getRestrictedAreas());</span>
+    }
+
+
+
+
+    /**
+     * handles bad requests, mapping each validation error and logging it
+     * logs the field name causing the error with its error message
+     * @param ex the exception being handled
+     */
+    //handles bad requests - status code 400
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public void handleValidationExceptions(MethodArgumentNotValidException ex){
+<span class="fc" id="L251">        ex.getBindingResult().getAllErrors().forEach(error -&gt; {</span>
+<span class="fc" id="L252">            String fieldName = ((FieldError) error).getField();</span>
+<span class="fc" id="L253">            String errorMessage = error.getDefaultMessage();</span>
+<span class="fc" id="L254">            logger.warn(fieldName + &quot; : &quot; + errorMessage);</span>
+<span class="fc" id="L255">        });</span>
+<span class="fc" id="L256">    }</span>
+
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,10 @@
+uk/ac/ed/acp/cw1/unit/DroneServiceTests.class
+uk/ac/ed/acp/cw1/unit/ExternalAPIServiceTests.class
+uk/ac/ed/acp/cw1/unit/ServiceControllerUnitTests.class
+uk/ac/ed/acp/cw1/unit/ValidAngleValidatorTests.class
+uk/ac/ed/acp/cw1/unit/DistanceServiceTests.class
+uk/ac/ed/acp/cw1/unit/PathfindingServiceTests.class
+uk/ac/ed/acp/cw1/unit/AttributeComparatorTests.class
+uk/ac/ed/acp/cw1/unit/ClosedPolygonValidatorTests.class
+uk/ac/ed/acp/cw1/AcpCw2ApplicationTests.class
+uk/ac/ed/acp/cw1/integration/ServiceControllerTests.class

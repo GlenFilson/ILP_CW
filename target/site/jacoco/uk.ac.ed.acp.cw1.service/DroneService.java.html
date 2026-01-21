@@ -1,0 +1,307 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DroneService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ILP_CW1</a> &gt; <a href="index.source.html" class="el_package">uk.ac.ed.acp.cw1.service</a> &gt; <span class="el_source">DroneService.java</span></div><h1>DroneService.java</h1><pre class="source lang-java linenums">package uk.ac.ed.acp.cw1.service;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import uk.ac.ed.acp.cw1.dto.*;
+
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+public class DroneService {
+
+    private final ExternalAPIService externalAPIService;
+    private final DistanceService distanceService;
+    private static final double MOVE_DISTANCE = 0.00015; // Step size for drone movement
+
+    @Autowired
+<span class="fc" id="L21">    public DroneService(ExternalAPIService externalAPIService, DistanceService distanceService){</span>
+<span class="fc" id="L22">        this.externalAPIService = externalAPIService;</span>
+<span class="fc" id="L23">        this.distanceService = distanceService;</span>
+<span class="fc" id="L24">    }</span>
+
+
+    /**
+     * Fetches all drones from the {@link DroneService} and filters for cooling
+     * @param state boolean of whether to return drones with cooling or without
+     * @return list of drone id's that have cooling
+     */
+    public List&lt;String&gt; getDronesWithCooling(boolean state){
+        //fetch all drones from the external service
+<span class="fc" id="L34">        List&lt;Drone&gt; allDrones = externalAPIService.getAllDrones();</span>
+        //go through all drones
+<span class="fc" id="L36">        return allDrones.stream()</span>
+                //filter for drones that have cooling attribute = true
+<span class="fc bfc" id="L38" title="All 2 branches covered.">                .filter(drone -&gt; drone.getCapability().isCooling() == state)</span>
+                //for these drones, create a list containing their id's
+<span class="fc" id="L40">                .map(drone -&gt; String.valueOf(drone.getId()))</span>
+<span class="fc" id="L41">                .collect(Collectors.toList());</span>
+
+    }
+
+    public Drone getDroneById(String id) {
+        //go through all drones
+<span class="fc" id="L47">        return externalAPIService.getAllDrones().stream()</span>
+                //filter for drones which id matches the given parameter
+<span class="fc" id="L49">                .filter(drone -&gt; drone.getId().equals(id))</span>
+                //get the first instance of a match
+<span class="fc" id="L51">                .findFirst()</span>
+                //otherwise return null
+<span class="fc" id="L53">                .orElse(null);</span>
+    }
+
+    public List&lt;String&gt; queryAsPath(String attributeName, String attributeValue){
+        //as &quot;=&quot; is passed as an operator, operator should never be null
+<span class="fc" id="L58">        QueryAttribute queryAttribute = new QueryAttribute(attributeName, &quot;=&quot;, attributeValue);</span>
+<span class="fc" id="L59">        return externalAPIService.getAllDrones().stream()</span>
+<span class="fc" id="L60">                .filter(drone -&gt; AttributeComparator.matches(drone, queryAttribute))</span>
+<span class="fc" id="L61">                .map(drone -&gt; String.valueOf(drone.getId()))</span>
+<span class="fc" id="L62">                .collect(Collectors.toList());</span>
+
+    }
+
+    public List&lt;String&gt; query(List&lt;QueryAttribute&gt; queryAttributes){
+<span class="fc" id="L67">        return externalAPIService.getAllDrones().stream()</span>
+<span class="fc" id="L68">                .filter(drone -&gt; queryAttributes.stream()</span>
+<span class="fc" id="L69">                        .allMatch(queryAttribute -&gt; AttributeComparator.matches(drone, queryAttribute)))</span>
+<span class="fc" id="L70">                .map(drone -&gt; String.valueOf(drone.getId()))</span>
+<span class="fc" id="L71">                .collect(Collectors.toList());</span>
+    }
+
+    public List&lt;String&gt; queryAvailableDrones(List&lt;MedDispatchRec&gt; dispatches) {
+<span class="fc bfc" id="L75" title="All 4 branches covered.">        if (dispatches == null || dispatches.isEmpty()) {</span>
+<span class="fc" id="L76">            return new ArrayList&lt;&gt;();</span>
+        }
+
+        // NOTE: per forum/instructor clarification, queryAvailableDrones should return a
+        // drone if it can satisfy ALL dispatch records (joined by AND), even when
+        // the dispatches are on different dates. Availability and capability are
+        // checked per-dispatch further down. Therefore we do not reject multi-day
+        // inputs here.
+
+<span class="fc" id="L85">        List&lt;Drone&gt; allDrones = externalAPIService.getAllDrones();</span>
+<span class="fc" id="L86">        List&lt;DroneForServicePointResponse&gt; dronesForServicePoints = externalAPIService.getDronesForServicePoints();</span>
+<span class="fc" id="L87">        List&lt;ServicePoint&gt; servicePoints = externalAPIService.getServicePoints();</span>
+
+<span class="fc" id="L89">        Map&lt;String, DroneAvailability&gt; droneAvailabilityMap = buildDroneAvailabilityMap(dronesForServicePoints);</span>
+
+<span class="fc" id="L91">        Map&lt;String, Integer&gt; droneToServicePointMap = buildDroneToServicePointMap(dronesForServicePoints);</span>
+
+        //get all drones
+        //given a list of dispatches, return drones which fulfill all of them
+        //need to check the maximum capacity needed for any single dispatch
+        //need to check if any dispatches require cooling or heating
+        //if maxCost is given, need to find the minimum maxCost (most restrictive) and ensure drone meets
+        //check day and time availability for ALL dispatches
+
+        //find the maximum capacity among all dispatches (drone makes separate trips)
+<span class="fc" id="L101">        double maxCapacity = dispatches.stream()</span>
+<span class="fc" id="L102">                .mapToDouble(dispatch -&gt; dispatch.getRequirements().getCapacity())</span>
+<span class="fc" id="L103">                .max()</span>
+<span class="fc" id="L104">                .orElse(0.0);</span>
+<span class="fc" id="L105">        boolean coolingRequired = dispatches.stream()</span>
+<span class="fc" id="L106">                .anyMatch(dispatch -&gt; dispatch.getRequirements().isCooling());</span>
+
+<span class="fc" id="L108">        boolean heatingRequired = dispatches.stream()</span>
+<span class="fc" id="L109">                .anyMatch(dispatch -&gt; dispatch.getRequirements().isHeating());</span>
+
+        //we want to find the most restrictive maxCost constraint, the minimum maxCost in the dispatches
+<span class="fc" id="L112">        Double minimumMaxCost = dispatches.stream()</span>
+<span class="fc" id="L113">                .map(dispatch -&gt; dispatch.getRequirements().getMaxCost())</span>
+                //maxCost is optional so handle null values, ignore them
+<span class="fc" id="L115">                .filter(Objects::nonNull)</span>
+<span class="fc" id="L116">                .min(Double::compareTo)</span>
+<span class="fc" id="L117">                .orElse(null);</span>
+
+        //uses helper function canFulfillAllDispatches to compare all drones to the calculated constraints from dispatches
+        //also checks availability for EVERY dispatch time (not just the first)
+<span class="fc" id="L121">        return allDrones.stream()</span>
+<span class="fc" id="L122">                .filter(drone -&gt; {</span>
+                    // determine assigned service point for this drone (if any)
+<span class="fc" id="L124">                    Integer assignedSpId = droneToServicePointMap.get(drone.getId());</span>
+<span class="fc" id="L125">                    ServicePoint assignedSp = null;</span>
+<span class="fc bfc" id="L126" title="All 2 branches covered.">                    if (assignedSpId != null) {</span>
+<span class="fc" id="L127">                        final Integer spIdFinal = assignedSpId;</span>
+<span class="fc" id="L128">                        assignedSp = servicePoints.stream()</span>
+<span class="fc" id="L129">                                .filter(sp -&gt; sp.getId().equals(spIdFinal))</span>
+<span class="fc" id="L130">                                .findFirst()</span>
+<span class="fc" id="L131">                                .orElse(null);</span>
+                    }
+
+                    // check capability with dispatches and service points for proper cost estimation
+<span class="fc bfc" id="L135" title="All 2 branches covered.">                    if (!canFulfillAllDispatches(drone, maxCapacity, coolingRequired, heatingRequired,</span>
+                                                  minimumMaxCost, dispatches, servicePoints, assignedSp)) {
+<span class="fc" id="L137">                        return false;</span>
+                    }
+
+                    // check availability for EVERY dispatch time
+<span class="fc" id="L141">                    DroneAvailability availability = droneAvailabilityMap.get(drone.getId());</span>
+<span class="fc bfc" id="L142" title="All 2 branches covered.">                    if (availability == null) {</span>
+<span class="fc" id="L143">                        return false; // No availability data = unavailable</span>
+                    }
+
+                    // drone must be available for ALL dispatches
+<span class="fc bfc" id="L147" title="All 2 branches covered.">                    for (MedDispatchRec dispatch : dispatches) {</span>
+<span class="fc" id="L148">                        LocalDate date = dispatch.getDate();</span>
+<span class="fc" id="L149">                        LocalTime time = dispatch.getTime();</span>
+<span class="fc" id="L150">                        DayOfWeek dayOfWeek = date.getDayOfWeek();</span>
+
+<span class="fc bfc" id="L152" title="All 2 branches covered.">                        if (!isDroneAvailable(availability, dayOfWeek, time)) {</span>
+<span class="fc" id="L153">                            return false; // Unavailable for this dispatch = reject drone</span>
+                        }
+<span class="fc" id="L155">                    }</span>
+
+<span class="fc" id="L157">                    return true; // available for all dispatches</span>
+                })
+<span class="fc" id="L159">                .map(drone -&gt; String.valueOf(drone.getId()))</span>
+<span class="fc" id="L160">                .collect(Collectors.toList());</span>
+    }
+
+    private Map&lt;String, DroneAvailability&gt; buildDroneAvailabilityMap(List&lt;DroneForServicePointResponse&gt; dronesForSP) {
+<span class="fc" id="L164">        Map&lt;String, DroneAvailability&gt; map = new HashMap&lt;&gt;();</span>
+
+<span class="fc bfc" id="L166" title="All 2 branches covered.">        for (DroneForServicePointResponse sp : dronesForSP) {</span>
+<span class="fc bfc" id="L167" title="All 2 branches covered.">            for (DroneAvailability droneAvail : sp.getDrones()) {</span>
+<span class="fc" id="L168">                map.put(droneAvail.getId(), droneAvail);</span>
+<span class="fc" id="L169">            }</span>
+<span class="fc" id="L170">        }</span>
+
+<span class="fc" id="L172">        return map;</span>
+    }
+
+    private Map&lt;String, Integer&gt; buildDroneToServicePointMap(List&lt;DroneForServicePointResponse&gt; dronesForSP) {
+<span class="fc" id="L176">        Map&lt;String, Integer&gt; map = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L177" title="All 2 branches covered.">        for (DroneForServicePointResponse sp : dronesForSP) {</span>
+<span class="fc" id="L178">            Integer spId = sp.getServicePointId();</span>
+<span class="fc bfc" id="L179" title="All 2 branches covered.">            for (DroneAvailability droneAvail : sp.getDrones()) {</span>
+<span class="fc" id="L180">                map.put(droneAvail.getId(), spId);</span>
+<span class="fc" id="L181">            }</span>
+<span class="fc" id="L182">        }</span>
+<span class="fc" id="L183">        return map;</span>
+    }
+
+    private boolean isDroneAvailable(DroneAvailability droneAvail, DayOfWeek dayOfWeek, LocalTime time) {
+<span class="fc bfc" id="L187" title="All 2 branches covered.">        for (Availability slot : droneAvail.getAvailability()) {</span>
+<span class="fc bfc" id="L188" title="All 2 branches covered.">            if (slot.getDayOfWeek() == dayOfWeek) {</span>
+<span class="fc" id="L189">                LocalTime from = slot.getFrom();</span>
+<span class="fc" id="L190">                LocalTime until = slot.getUntil();</span>
+
+                // check if time falls within [from, until)
+<span class="fc bfc" id="L193" title="All 4 branches covered.">                if (!time.isBefore(from) &amp;&amp; !time.isAfter(until)) {</span>
+<span class="fc" id="L194">                    return true;</span>
+                }
+            }
+<span class="fc" id="L197">        }</span>
+<span class="fc" id="L198">        return false;</span>
+    }
+
+    private boolean canFulfillAllDispatches(Drone drone,
+                                            double maxCapacityNeeded,
+                                            boolean coolingRequired,
+                                            boolean heatingRequired,
+                                            Double maxCostAllowed,
+                                            List&lt;MedDispatchRec&gt; dispatches,
+                                            List&lt;ServicePoint&gt; servicePoints,
+                                            ServicePoint assignedServicePoint) {
+<span class="fc" id="L209">        Drone.Capability capability = drone.getCapability();</span>
+
+        //check capacity constraint (drone only needs to satisfy max single dispatch capacity)
+<span class="fc bfc" id="L212" title="All 2 branches covered.">        if(capability.getCapacity() &lt; maxCapacityNeeded){</span>
+<span class="fc" id="L213">            return false;</span>
+        }
+        //if the drone dosent have cooling, and cooling is required return false
+<span class="fc bfc" id="L216" title="All 4 branches covered.">        if(!capability.isCooling() &amp;&amp; coolingRequired ){</span>
+<span class="fc" id="L217">            return false;</span>
+        }
+
+        //if the drone dosent have heating, and heating is required return false
+<span class="fc bfc" id="L221" title="All 4 branches covered.">        if(!capability.isHeating() &amp;&amp; heatingRequired ){</span>
+<span class="fc" id="L222">            return false;</span>
+        }
+
+        //check maxMoves constraint for each dispatch (round trip)
+<span class="pc bpc" id="L226" title="2 of 4 branches missed.">        if(capability.getMaxMoves() != null &amp;&amp; !dispatches.isEmpty()){</span>
+<span class="fc bfc" id="L227" title="All 2 branches covered.">            for (MedDispatchRec dispatch : dispatches) {</span>
+                // use assigned service point for this drone if available, otherwise pick closest
+<span class="fc bfc" id="L229" title="All 2 branches covered.">                ServicePoint spToUse = assignedServicePoint != null ? assignedServicePoint : findClosestServicePoint(</span>
+<span class="fc" id="L230">                    dispatch.getDelivery(), servicePoints</span>
+                );
+
+                // calculate distance from service point to delivery location (one way)
+<span class="fc" id="L234">                double distance = distanceService.euclideanDistance(</span>
+<span class="fc" id="L235">                    spToUse.getLocation(),</span>
+<span class="fc" id="L236">                    dispatch.getDelivery()</span>
+                );
+
+                // estimate moves needed for round trip
+<span class="fc" id="L240">                double estimatedMovesOneWay = distance / MOVE_DISTANCE;</span>
+<span class="fc" id="L241">                double estimatedMovesRoundTrip = estimatedMovesOneWay * 2;</span>
+
+                // check if drone can complete this dispatch within maxMoves
+<span class="fc bfc" id="L244" title="All 2 branches covered.">                if(estimatedMovesRoundTrip &gt; capability.getMaxMoves()){</span>
+<span class="fc" id="L245">                    return false;</span>
+                }
+<span class="fc" id="L247">            }</span>
+        }
+
+        //PIAZZA: Only perform attribute-based filtering and use a lower-bound or estimated cost such as
+        //(distance(servicePoint, delivery)/step) × costPerMove + costInitial + costFinal, divided by the number of dispatches
+<span class="pc bpc" id="L252" title="1 of 4 branches missed.">        if(maxCostAllowed != null &amp;&amp; !dispatches.isEmpty()){</span>
+<span class="fc" id="L253">            int numDispatches = dispatches.size();</span>
+
+            // calculate estimated cost per dispatch
+<span class="fc" id="L256">            double totalEstimatedCost = 0.0;</span>
+
+<span class="fc bfc" id="L258" title="All 2 branches covered.">            for (MedDispatchRec dispatch : dispatches) {</span>
+                // use assigned service point for this drone if available, otherwise pick closest
+<span class="pc bpc" id="L260" title="1 of 2 branches missed.">                ServicePoint spToUse = assignedServicePoint != null ? assignedServicePoint : findClosestServicePoint(</span>
+<span class="nc" id="L261">                    dispatch.getDelivery(), servicePoints</span>
+                );
+
+                // calculate distance from service point to delivery location
+<span class="fc" id="L265">                double distance = distanceService.euclideanDistance(</span>
+<span class="fc" id="L266">                    spToUse.getLocation(),</span>
+<span class="fc" id="L267">                    dispatch.getDelivery()</span>
+                );
+
+
+<span class="fc" id="L271">                double estimatedMoves = (distance / MOVE_DISTANCE) * 2;</span>
+
+                // calculate cost for this dispatch
+<span class="fc" id="L274">                double moveCost = estimatedMoves * capability.getCostPerMove();</span>
+<span class="fc" id="L275">                totalEstimatedCost += moveCost;</span>
+<span class="fc" id="L276">            }</span>
+
+            // add initial and final costs (pro rata)
+<span class="fc" id="L279">            double fixedCostsPerDispatch = (capability.getCostInitial() + capability.getCostFinal()) / numDispatches;</span>
+<span class="fc" id="L280">            double totalMoveCostPerDispatch = totalEstimatedCost / numDispatches;</span>
+<span class="fc" id="L281">            double estimatedCostPerDispatch = fixedCostsPerDispatch + totalMoveCostPerDispatch;</span>
+
+            // check against the most restrictive maxCost
+<span class="pc bpc" id="L284" title="1 of 2 branches missed.">            return estimatedCostPerDispatch &lt;= maxCostAllowed;</span>
+        }
+
+        //if the drone passed all these constraints then return true
+<span class="fc" id="L288">        return true;</span>
+    }
+
+    /**
+     * find the closest service point to a given delivery location
+     * @param deliveryLocation the delivery destination
+     * @param servicePoints list of available service points
+     * @return the closest service point
+     */
+    private ServicePoint findClosestServicePoint(Position deliveryLocation, List&lt;ServicePoint&gt; servicePoints) {
+<span class="fc" id="L298">        return servicePoints.stream()</span>
+<span class="fc" id="L299">                .min(Comparator.comparingDouble(sp -&gt;</span>
+<span class="fc" id="L300">                    distanceService.euclideanDistance(sp.getLocation(), deliveryLocation)</span>
+                ))
+<span class="fc" id="L302">                .orElse(servicePoints.get(0)); // Fallback to first service point</span>
+    }
+
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
