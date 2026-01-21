@@ -31,49 +31,6 @@ jobs:
       - name: Generate JaCoCo Coverage Report
         run: mvn jacoco:report
 
-      - name: Output Coverage Summary
-        run: |
-          echo "## 📊 Test Coverage Report" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          # Parse JaCoCo CSV for coverage data
-          if [ -f target/site/jacoco/jacoco.csv ]; then
-            echo "| Package | Instruction Coverage | Branch Coverage | Lines Covered |" >> $GITHUB_STEP_SUMMARY
-            echo "|---------|---------------------|-----------------|---------------|" >> $GITHUB_STEP_SUMMARY
-          
-            # Skip header and process each line
-            tail -n +2 target/site/jacoco/jacoco.csv | while IFS=, read -r group package class instr_missed instr_covered branch_missed branch_covered line_missed line_covered method_missed method_covered complexity_missed complexity_covered; do
-              if [ -n "$package" ]; then
-                total_instr=$((instr_missed + instr_covered))
-                total_branch=$((branch_missed + branch_covered))
-                total_lines=$((line_missed + line_covered))
-          
-                if [ $total_instr -gt 0 ]; then
-                  instr_pct=$((instr_covered * 100 / total_instr))
-                else
-                  instr_pct=0
-                fi
-          
-                if [ $total_branch -gt 0 ]; then
-                  branch_pct=$((branch_covered * 100 / total_branch))
-                else
-                  branch_pct="N/A"
-                fi
-          
-                echo "| $package | ${instr_pct}% | ${branch_pct}% | ${line_covered}/${total_lines} |" >> $GITHUB_STEP_SUMMARY
-              fi
-            done
-          fi
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📁 Full report available in **coverage-report** artifact" >> $GITHUB_STEP_SUMMARY
-
-      - name: Upload Coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./target/site/jacoco/jacoco.xml
-          fail_ci_if_error: false
-
       - name: Publish Test Results
         if: always()
         uses: EnricoMi/publish-unit-test-result-action@v2
@@ -81,6 +38,17 @@ jobs:
           files: target/surefire-reports/**/*.xml
           check_name: Test Results
           comment_mode: always
+
+      - name: JaCoCo Coverage Report
+        if: always()
+        uses: madrapps/jacoco-report@v1.6.1
+        with:
+          paths: target/site/jacoco/jacoco.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          min-coverage-overall: 80
+          min-coverage-changed-files: 80
+          title: "📊 Code Coverage Report"
+          update-comment: true
 
       - name: Archive Coverage Report
         if: always()
@@ -119,8 +87,4 @@ jobs:
         run: docker build -t ilp-service:${{ github.sha }} .
 
       - name: Verify Docker Image Created
-        run: |
-          echo "## 🐳 Docker Build" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Image built successfully: \`ilp-service:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          docker images ilp-service:${{ github.sha }} --format "| Size | {{.Size}} |" >> $GITHUB_STEP_SUMMARY
+        run: docker images ilp-service:${{ github.sha }}
