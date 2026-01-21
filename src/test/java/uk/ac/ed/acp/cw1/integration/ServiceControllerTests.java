@@ -3,12 +3,16 @@ package uk.ac.ed.acp.cw1.integration;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+
+import java.util.concurrent.TimeUnit;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -28,6 +32,70 @@ public class ServiceControllerTests {
         mockMvc.perform(get("/api/v1/uid"))
                 .andExpect(status().isOk())
                 .andExpect(content().string("s2539057"));
+    }
+
+    @Test
+    @Timeout(value = 30, unit = TimeUnit.SECONDS)
+    void testCalcDeliveryPath_completesWithinTimeLimit() throws Exception {
+        String jsonRequest = """
+            [
+                {
+                    "id": 1,
+                    "date": "2025-12-22",
+                    "time": "14:30",
+                    "delivery": { "lng": -3.188267, "lat": 55.944425 },
+                    "requirements": { "capacity": 5.0 }
+                }
+            ]
+            """;
+        mockMvc.perform(post("/api/v1/calcDeliveryPath")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(status().isOk());
+    }
+
+
+    @Test
+    void testHealthEndpoint_returnsUp() throws Exception {
+        mockMvc.perform(get("/actuator/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"));
+    }
+
+    @Test
+    void testHealthEndpoint_afterErrorCondition_stillReturnsUp() throws Exception {
+        String invalidJson = "{ }";
+        mockMvc.perform(post("/api/v1/distanceTo")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidJson))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(get("/actuator/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"));
+    }
+
+    @Test
+    void testIsInRegion_openPolygon_returnsBadRequest() throws Exception {
+        String jsonRequest = """
+            {
+                "position": { "lat": 1.0, "lng": 1.0 },
+                "region": {
+                    "name": "OpenPolygon",
+                    "vertices": [
+                        { "lat": 0.0, "lng": 0.0 },
+                        { "lat": 2.0, "lng": 0.0 },
+                        { "lat": 2.0, "lng": 2.0 },
+                        { "lat": 0.0, "lng": 2.0 },
+                        { "lat": 0.1, "lng": 0.0 }
+                    ]
+                }
+            }
+            """;
+        mockMvc.perform(post("/api/v1/isInRegion")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(status().isBadRequest());
     }
 
     //distanceTo Tests
