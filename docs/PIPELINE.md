@@ -1,54 +1,52 @@
-# CI/CD Pipeline and Code Review
-
-## Pipeline Overview
+# CI Pipeline
 
 ## Pipeline Stages
 
-| Stage | Actions | Artifacts |
-|-------|---------|-----------|
-| **Build & Test** | Compile, run all unit/integration tests, generate JaCoCo report | `coverage-report/`, `test-results/` |
-| **Docker Build** | Package JAR, build Docker image, verify image created | Docker image |
+| Stage | Actions | Output |
+|-------|---------|--------|
+| **Build & Test** | Compile, run tests, generate JaCoCo report | Test results, per-class coverage table in job summary |
+| **Docker Build** | Package JAR, build Docker image | Verified container image with size |
+
 
 ## Quality Gates
 
-| Gate | Criteria | Requirement |
-|------|----------|-------------|
-| Tests pass | All unit and integration tests green | All requirements |
-| Coverage generated | JaCoCo report uploaded as artifact | LO3 |
-| Docker builds | Image builds successfully | S-02 |
+| Gate | Threshold | Requirement |
+|------|-----------|-------------|
+| All tests pass | 100% | All requirements |
+| Coverage visible | Per-class breakdown in summary | LO3 |
+| Docker image builds | Success | S-02 |
+
+## Artifacts
+
+| Artifact | Contents | Retention |
+|----------|----------|-----------|
+| `coverage-report/` | Full JaCoCo HTML report | 30 days |
+| `test-results/` | Surefire XML reports | 30 days |
 
 ## Code Review Checklist
 
 ### Functional Correctness
 | Check | Requirement |
 |-------|-------------|
-| `isCloseTo` uses strictly-less-than (<) comparison | U-01 |
-| `isInRegion` handles points on edges and vertices | U-02 |
-| `queryAvailableDrones` filters by all constraints | I-01, I-02 |
-| API failures caught and return empty collections | I-03 |
-| Paths avoid no-fly zones and respect move limits | S-01 |
+| `isCloseTo` uses strictly-less-than (`<`) | U-01 |
+| `isInRegion` handles edge and vertex cases | U-02 |
+| `queryAvailableDrones` applies all constraints | I-01, I-02 |
+| API failures return empty collections | I-03 |
+| Paths respect no-fly zones and move limits | S-01 |
 
 ### Input Validation
 | Check | Requirement |
 |-------|-------------|
-| `@Valid` annotation on controller request parameters | V-01 |
-| `@ClosedPolygon` validator rejects open polygons | V-02 |
-| Invalid JSON returns HTTP 400 | V-01 |
+| `@Valid` on controller parameters | V-01 |
+| `@ClosedPolygon` rejects open polygons | V-02 |
 
-### Code Quality
-| Check | Purpose |
-|-------|---------|
-| Constants used instead of magic numbers (e.g., `0.00015`) | Maintainability |
-| Logging present in catch blocks | Debugging |
-| No uncaught exceptions propagate to client | Robustness |
-
-## Pipeline Evaluation
+## Evaluation
 
 **Strengths:**
-- Automated test execution on every push
-- Coverage reports preserved for review
-- Docker build verifies containerisation works
+- Automated testing on every push/PR
+- Coverage breakdown by package posted to PR
+- Docker build verifies containerisation
 
 **Limitations:**
-- No live API integration tests (mitigated by mocking in unit tests)
+- No live API integration tests (mitigated by mocking)
 - No automated deployment

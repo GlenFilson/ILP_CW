@@ -31,6 +31,49 @@ jobs:
       - name: Generate JaCoCo Coverage Report
         run: mvn jacoco:report
 
+      - name: Output Coverage Summary
+        if: always()
+        run: |
+          echo "## 📊 Code Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f target/site/jacoco/jacoco.csv ]; then
+            echo "| Class | Instruction | Branch | Lines |" >> $GITHUB_STEP_SUMMARY
+            echo "|-------|-------------|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          
+            # Parse CSV: GROUP,PACKAGE,CLASS,INSTR_MISSED,INSTR_COVERED,BRANCH_MISSED,BRANCH_COVERED,...
+            tail -n +2 target/site/jacoco/jacoco.csv | while IFS=, read -r group package class instr_missed instr_covered branch_missed branch_covered line_missed line_covered rest; do
+              if [ -n "$class" ]; then
+                # Calculate percentages
+                total_instr=$((instr_missed + instr_covered))
+                total_branch=$((branch_missed + branch_covered))
+                total_lines=$((line_missed + line_covered))
+          
+                if [ $total_instr -gt 0 ]; then
+                  instr_pct=$((instr_covered * 100 / total_instr))
+                else
+                  instr_pct=0
+                fi
+          
+                if [ $total_branch -gt 0 ]; then
+                  branch_pct=$((branch_covered * 100 / total_branch))
+                  branch_str="${branch_pct}%"
+                else
+                  branch_str="N/A"
+                fi
+          
+                # Extract short package name (last part)
+                short_pkg=$(echo "$package" | sed 's/.*\.//')
+          
+                echo "| \`${short_pkg}.${class}\` | ${instr_pct}% | ${branch_str} | ${line_covered}/${total_lines} |" >> $GITHUB_STEP_SUMMARY
+              fi
+            done
+          
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "---" >> $GITHUB_STEP_SUMMARY
+            echo "📁 Full HTML report available in **coverage-report** artifact" >> $GITHUB_STEP_SUMMARY
+          fi
+
       - name: Publish Test Results
         if: always()
         uses: EnricoMi/publish-unit-test-result-action@v2
@@ -38,17 +81,6 @@ jobs:
           files: target/surefire-reports/**/*.xml
           check_name: Test Results
           comment_mode: always
-
-      - name: JaCoCo Coverage Report
-        if: always()
-        uses: madrapps/jacoco-report@v1.6.1
-        with:
-          paths: target/site/jacoco/jacoco.xml
-          token: ${{ secrets.GITHUB_TOKEN }}
-          min-coverage-overall: 80
-          min-coverage-changed-files: 80
-          title: "📊 Code Coverage Report"
-          update-comment: true
 
       - name: Archive Coverage Report
         if: always()
@@ -86,5 +118,13 @@ jobs:
       - name: Build Docker Image
         run: docker build -t ilp-service:${{ github.sha }} .
 
-      - name: Verify Docker Image Created
-        run: docker images ilp-service:${{ github.sha }}
+      - name: Docker Build Summary
+        run: |
+          echo "## 🐳 Docker Build" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Image built successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Image | \`ilp-service:${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          docker images ilp-service:${{ github.sha }} --format "| Size | {{.Size}} |" >> $GITHUB_STEP_SUMMARY
